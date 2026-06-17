@@ -38,6 +38,15 @@ public class User {
     @UpdateTimestamp
     private Instant updatedAt;
 
+    @Column(nullable = false)
+    private Instant lastLoginAt;
+
+    @Column(nullable = false)
+    private String avatarUrl;
+
+    // relazione con Role, da gestire
+    // sarà una relazione many to many
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
