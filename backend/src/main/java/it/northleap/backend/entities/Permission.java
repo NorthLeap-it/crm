@@ -10,42 +10,45 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
 import java.util.UUID;
 
+// resource è una stringa libera (key di un ObjectType, oppure risorsa di sistema fissa come
+// "page"/"chart"/"workflow"/"user"/"apikey") e non una FK a ObjectType: deve poter referenziare
+// anche risorse che non sono ObjectType
 @Entity
-@Table(name = "invite")
+@Table(name = "permission", uniqueConstraints = @UniqueConstraint(columnNames = {"role_id", "resource"}))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Invite {
+public class Permission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
-    private String email;
-
-    // carica solo quando li uso effettivamente
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @Column(nullable = false, unique = true)
-    private String tokenHash;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invited_by")
-    private User invitedBy;
-
-    private Instant acceptedAt;
+    @Column(nullable = false)
+    private String resource;
 
     @Column(nullable = false)
-    private Instant expiresAt;
+    private boolean canRead = false;
+
+    @Column(nullable = false)
+    private boolean canWrite = false;
+
+    @Column(nullable = false)
+    private boolean canExecute = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PermScope scope = PermScope.OWN;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Invite other)) return false;
+        if (!(o instanceof Permission other)) return false;
         return id != null && id.equals(other.id);
     }
 
@@ -57,6 +60,4 @@ public class Invite {
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
-
-
 }

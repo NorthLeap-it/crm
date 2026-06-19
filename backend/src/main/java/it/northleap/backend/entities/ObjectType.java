@@ -9,36 +9,53 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+// "order" è parola riservata in Postgres -> campo/colonna rinominati sortOrder/sort_order
 @Entity
-@Table(name = "workspace")
+@Table(name = "object_type")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Workspace {
+public class ObjectType {
 
-    // chiave
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
-    private String name;
+    @Column(nullable = false, unique = true)
+    private String key;
 
     @Column(nullable = false)
-    private String brandColor = "#0A84FF";
-
-    private String logoUrl;
+    private String label;
 
     @Column(nullable = false)
-    private boolean onboarded = false;
+    private String pluralLabel;
+
+    private String icon;
+
+    private String color;
+
+    @Column(nullable = false)
+    private boolean isSystem = false;
+
+    @Column(nullable = false)
+    private boolean isEnabled = true;
+
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder = 0;
+
+    @OneToMany(mappedBy = "objectType", fetch = FetchType.LAZY)
+    @OrderBy("sortOrder ASC")
+    private List<FieldDef> fields = new ArrayList<>();
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Workspace other)) return false;
+        if (!(o instanceof ObjectType other)) return false;
         return id != null && id.equals(other.id);
     }
 
@@ -53,5 +70,4 @@ public class Workspace {
 
     @UpdateTimestamp
     private Instant updatedAt;
-
 }

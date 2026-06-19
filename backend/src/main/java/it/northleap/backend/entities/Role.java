@@ -11,41 +11,30 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "invite")
+@Table(name = "role")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Invite {
+public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
-    private String email;
-
-    // carica solo quando li uso effettivamente
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
-
     @Column(nullable = false, unique = true)
-    private String tokenHash;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invited_by")
-    private User invitedBy;
-
-    private Instant acceptedAt;
+    private String key;
 
     @Column(nullable = false)
-    private Instant expiresAt;
+    private String label;
+
+    @Column(nullable = false)
+    private boolean isSystem = false;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Invite other)) return false;
+        if (!(o instanceof Role other)) return false;
         return id != null && id.equals(other.id);
     }
 
@@ -57,6 +46,4 @@ public class Invite {
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
-
-
 }

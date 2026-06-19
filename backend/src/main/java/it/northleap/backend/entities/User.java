@@ -25,23 +25,17 @@ public class User {
 
     private String name;
 
+    // salvo hash e non token
+    // se il DB viene
+    // compromesso un attaccante non deve poter riusare le sessioni
     @Column(nullable = false)
     private String passwordHash;
 
     @Column(nullable = false)
     private boolean isActive = true;
 
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    private Instant updatedAt;
-
-    @Column(nullable = false)
     private Instant lastLoginAt;
 
-    @Column(nullable = false)
     private String avatarUrl;
 
     // relazione con Role, da gestire
@@ -59,4 +53,11 @@ public class User {
     public int hashCode() {
         return getClass().hashCode();
     }
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    private Instant updatedAt;
 }
