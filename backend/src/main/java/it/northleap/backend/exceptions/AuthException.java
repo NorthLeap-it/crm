@@ -38,4 +38,28 @@ public class AuthException {
                 )
         );
     }
+
+    // onboarding già completato, non si può rifare il primo utente
+    @ExceptionHandler(WorkspaceAlreadyOnboardedException.class)
+    public ResponseEntity<Map<String, Object>> handleWorkspaceAlreadyOnboarded(WorkspaceAlreadyOnboardedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                Map.of(
+                        "timestamp", Instant.now().toString(),
+                        "status", 400,
+                        "message", ex.getMessage()
+                )
+        );
+    }
+
+    // refresh token mancante/scaduto/revocato: stesso messaggio generico, non si specifica il motivo
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                Map.of(
+                        "timestamp", Instant.now().toString(),
+                        "status", 401,
+                        "message", ex.getMessage()
+                )
+        );
+    }
 }
