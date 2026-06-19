@@ -1,39 +1,158 @@
 package it.northleap.backend.services;
 
-import it.northleap.backend.dtos.LoginRequest;
-import it.northleap.backend.dtos.LoginResponse;
+import it.northleap.backend.dtos.*;
+import it.northleap.backend.entities.Role;
+import it.northleap.backend.entities.Session;
 import it.northleap.backend.entities.User;
+import it.northleap.backend.entities.UserRole;
+import it.northleap.backend.entities.UserRoleId;
+import it.northleap.backend.entities.Workspace;
+import it.northleap.backend.exceptions.InvalidRefreshTokenException;
+import it.northleap.backend.exceptions.WorkspaceAlreadyOnboardedException;
+import it.northleap.backend.repositories.RoleRepository;
+import it.northleap.backend.repositories.SessionRepository;
 import it.northleap.backend.repositories.UserRepository;
+import it.northleap.backend.repositories.UserRoleRepository;
+import it.northleap.backend.repositories.WorkspaceRepository;
 import it.northleap.backend.security.JwtService;
 import it.northleap.backend.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    // servizi + repo
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final SessionRepository sessionRepository;
+    private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // metodo per eseguire il login, usando dto request e response
-    public LoginResponse login(LoginRequest request) {
+    public StatusResponse status() {
+        return new StatusResponse(isOnboarded());
+    }
+
+    @Transactional
+    public AuthResponse onboarding(OnboardingRequest request, HttpServletRequest httpRequest) {
+        if (isOnboarded()) {
+            throw new WorkspaceAlreadyOnboardedException();
+        }
+
+        Workspace workspace = new Workspace();
+        workspace.setName(request.workspaceName());
+        workspace.setOnboarded(true);
+        workspaceRepository.save(workspace);
+
+        User user = new User();
+        user.setEmail(request.email());
+        user.setName(request.name());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setActive(true);
+        userRepository.save(user);
+
+        Role ownerRole = roleRepository.findByKey("owner")
+                .orElseThrow(() -> new IllegalStateException("Role 'owner' not seeded"));
+        UserRole userRole = new UserRole();
+        userRole.setId(new UserRoleId(user.getId(), ownerRole.getId()));
+        userRole.setUser(user);
+        userRole.setRole(ownerRole);
+        userRoleRepository.save(userRole);
+
+        return issueTokens(user, httpRequest.getHeader("User-Agent"), httpRequest.getRemoteAddr());
+    }
+
+    public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         var authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
 
-        // recupero l'utente
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         User user = userPrincipal.getUser();
 
-        // genero il token
-        String token = jwtService.generateToken(userPrincipal);
+        return issueTokens(user, httpRequest.getHeader("User-Agent"), httpRequest.getRemoteAddr());
+    }
 
-        return new LoginResponse(token, user.getId(), user.getEmail(), user.getName());
+    @Transactional
+    public AuthResponse refresh(RefreshRequest request) {
+        String userId;
+        try {
+            userId = jwtService.extractUserIdFromRefresh(request.refreshToken());
+        } catch (Exception e) {
+            throw new InvalidRefreshTokenException();
+        }
 
+        String hash = jwtService.hashToken(request.refreshToken());
+        Session session = sessionRepository.findByRefreshHash(hash)
+                .orElseThrow(InvalidRefreshTokenException::new);
+
+        if (session.getRevokedAt() != null || session.getExpiresAt().isBefore(Instant.now())) {
+            throw new InvalidRefreshTokenException();
+        }
+
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(InvalidRefreshTokenException::new);
+
+        // rotation: il refresh consuma la sessione precedente, mitiga replay
+        session.setRevokedAt(Instant.now());
+        sessionRepository.save(session);
+
+        return issueTokens(user, session.getUserAgent(), session.getIp());
+    }
+
+    @Transactional
+    public void logout(LogoutRequest request) {
+        String hash = jwtService.hashToken(request.refreshToken());
+        sessionRepository.findByRefreshHash(hash).ifPresent(session -> {
+            if (session.getRevokedAt() == null) {
+                session.setRevokedAt(Instant.now());
+                sessionRepository.save(session);
+            }
+        });
+    }
+
+    public MeResponse me(UserPrincipal principal) {
+        User user = principal.getUser();
+        List<String> roles = userRoleRepository.findByUser_Id(user.getId()).stream()
+                .map(userRole -> userRole.getRole().getKey())
+                .toList();
+        return new MeResponse(user.getId(), user.getEmail(), user.getName(), user.getAvatarUrl(), roles);
+    }
+
+    private boolean isOnboarded() {
+        return workspaceRepository.findTopByOrderByCreatedAtAsc()
+                .map(Workspace::isOnboarded)
+                .orElse(false);
+    }
+
+    private AuthResponse issueTokens(User user, String userAgent, String ip) {
+        UserPrincipal principal = new UserPrincipal(user);
+        String accessToken = jwtService.generateAccessToken(principal);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        Session session = new Session();
+        session.setUser(user);
+        session.setRefreshHash(jwtService.hashToken(refreshToken));
+        session.setUserAgent(userAgent);
+        session.setIp(ip);
+        session.setExpiresAt(jwtService.extractRefreshExpiration(refreshToken).toInstant());
+        sessionRepository.save(session);
+
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
+
+        return new AuthResponse(accessToken, refreshToken, user.getId(), user.getEmail(), user.getName());
     }
 }

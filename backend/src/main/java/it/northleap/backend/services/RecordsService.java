@@ -1,0 +1,195 @@
+package it.northleap.backend.services;
+
+import it.northleap.backend.dtos.BulkAction;
+import it.northleap.backend.dtos.BulkRecordsRequest;
+import it.northleap.backend.dtos.BulkResult;
+import it.northleap.backend.dtos.QueryRecordsDto;
+import it.northleap.backend.dtos.RecordDetailResponse;
+import it.northleap.backend.dtos.RecordQueryResponse;
+import it.northleap.backend.dtos.UpsertRecordDto;
+import it.northleap.backend.entities.ObjectType;
+import it.northleap.backend.entities.PermScope;
+import it.northleap.backend.entities.Record;
+import it.northleap.backend.entities.RecordLink;
+import it.northleap.backend.events.RecordCreatedEvent;
+import it.northleap.backend.events.RecordDeletedEvent;
+import it.northleap.backend.events.RecordUpdatedEvent;
+import it.northleap.backend.exceptions.NotFoundException;
+import it.northleap.backend.exceptions.RbacDeniedException;
+import it.northleap.backend.repositories.ObjectTypeRepository;
+import it.northleap.backend.repositories.RecordLinkRepository;
+import it.northleap.backend.repositories.RecordRepository;
+import it.northleap.backend.security.Actor;
+import it.northleap.backend.security.ActorType;
+import it.northleap.backend.security.PermAction;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+// Porting di records.service.ts: CRUD generico su Record, qualunque sia l'ObjectType. L'RBAC qui
+// NON passa da @RequirePerm (la risorsa è il {key} dinamico, non noto a tempo di annotazione) —
+// si chiama RbacService.resolve(...) direttamente, come authorize() nell'originale.
+@Service
+@RequiredArgsConstructor
+public class RecordsService {
+
+    private final ObjectTypeRepository objectTypeRepository;
+    private final RecordRepository recordRepository;
+    private final RecordLinkRepository recordLinkRepository;
+    private final RecordValidator recordValidator;
+    private final RecordQueryService recordQueryService;
+    private final RbacService rbacService;
+    private final AuditService auditService;
+    private final ApplicationEventPublisher events;
+
+    public RecordQueryResponse query(Actor actor, String key, QueryRecordsDto q) {
+        PermScope scope = authorize(actor, key, PermAction.READ);
+        ObjectType obj = objectOrThrow(key);
+        UUID ownerScopeId = actor.type() == ActorType.USER ? actor.id() : null;
+
+        RecordQueryService.QueryResult result = recordQueryService.query(obj, q, scope, ownerScopeId);
+        return new RecordQueryResponse(result.items(), result.total(), result.page(), result.pageSize(), obj);
+    }
+
+    public RecordDetailResponse findOne(Actor actor, String key, UUID id) {
+        ObjectType obj = objectOrThrow(key);
+        authorize(actor, key, PermAction.READ);
+        Record record = recordRepository.findByIdAndIsDeletedFalse(id)
+                .filter(r -> r.getObjectType().getId().equals(obj.getId()))
+                .orElseThrow(() -> new NotFoundException("Record non trovato"));
+        List<RecordLink> outgoing = recordLinkRepository.findBySource_Id(id);
+        List<RecordLink> incoming = recordLinkRepository.findByTarget_Id(id);
+        return new RecordDetailResponse(record, outgoing, incoming);
+    }
+
+    @Transactional
+    public Record create(Actor actor, String key, UpsertRecordDto dto, String ip) {
+        authorize(actor, key, PermAction.WRITE);
+        ObjectType obj = objectOrThrow(key);
+        Map<String, Object> data = recordValidator.validate(obj.getFields(), dto.getData());
+
+        Record record = new Record();
+        record.setObjectType(obj);
+        record.setTitle(dto.getTitle() != null ? dto.getTitle() : recordValidator.deriveTitle(obj.getFields(), data));
+        record.setStatus(dto.getStatus() != null ? dto.getStatus() : recordValidator.deriveStatus(obj.getFields(), data));
+        record.setOwnerId(dto.getOwnerId() != null ? dto.getOwnerId() : (actor.type() == ActorType.USER ? actor.id() : null));
+        record.setData(data);
+        recordRepository.save(record);
+
+        auditService.log(actor, "create", key, record.getId().toString(), null, ip);
+        events.publishEvent(new RecordCreatedEvent(key, record));
+        return record;
+    }
+
+    @Transactional
+    public Record update(Actor actor, String key, UUID id, UpsertRecordDto dto, String ip) {
+        PermScope scope = authorize(actor, key, PermAction.WRITE);
+        ObjectType obj = objectOrThrow(key);
+        Record existing = recordRepository.findByIdAndIsDeletedFalse(id)
+                .filter(r -> r.getObjectType().getId().equals(obj.getId()))
+                .orElseThrow(() -> new NotFoundException("Record non trovato"));
+
+        if (scope == PermScope.OWN && actor.type() == ActorType.USER
+                && !actor.id().equals(existing.getOwnerId())) {
+            throw new RbacDeniedException("Puoi modificare solo i tuoi record");
+        }
+
+        Map<String, Object> merged = new LinkedHashMap<>(existing.getData());
+        merged.putAll(dto.getData());
+        Map<String, Object> data = recordValidator.validate(obj.getFields(), merged);
+
+        Map<String, Object> before = existing.getData();
+        existing.setTitle(dto.getTitle() != null ? dto.getTitle() : recordValidator.deriveTitle(obj.getFields(), data));
+        existing.setStatus(dto.getStatus() != null ? dto.getStatus() : recordValidator.deriveStatus(obj.getFields(), data));
+        existing.setOwnerId(dto.getOwnerId() != null ? dto.getOwnerId() : existing.getOwnerId());
+        existing.setData(data);
+        recordRepository.save(existing);
+
+        auditService.log(actor, "update", key, id.toString(), Map.of("before", before, "after", data), ip);
+        events.publishEvent(new RecordUpdatedEvent(key, existing, before));
+        return existing;
+    }
+
+    @Transactional
+    public void remove(Actor actor, String key, UUID id, String ip) {
+        authorize(actor, key, PermAction.WRITE);
+        ObjectType obj = objectOrThrow(key);
+        Record existing = recordRepository.findByIdAndIsDeletedFalse(id)
+                .filter(r -> r.getObjectType().getId().equals(obj.getId()))
+                .orElseThrow(() -> new NotFoundException("Record non trovato"));
+        existing.setDeleted(true);
+        recordRepository.save(existing);
+
+        auditService.log(actor, "delete", key, id.toString(), null, ip);
+        events.publishEvent(new RecordDeletedEvent(key, existing));
+    }
+
+    @Transactional
+    public BulkResult bulk(Actor actor, String key, BulkRecordsRequest req, String ip) {
+        PermScope scope = authorize(actor, key, PermAction.WRITE);
+        ObjectType obj = objectOrThrow(key);
+        List<UUID> ids = req.getIds().size() > 500 ? req.getIds().subList(0, 500) : req.getIds();
+        boolean ownScope = scope == PermScope.OWN && actor.type() == ActorType.USER;
+
+        List<Record> records = ownScope
+                ? recordRepository.findByIdInAndObjectType_IdAndOwnerIdAndIsDeletedFalse(ids, obj.getId(), actor.id())
+                : recordRepository.findByIdInAndObjectType_IdAndIsDeletedFalse(ids, obj.getId());
+
+        if (req.getAction() == BulkAction.DELETE) {
+            records.forEach(r -> r.setDeleted(true));
+            recordRepository.saveAll(records);
+            auditService.log(actor, "bulk_delete", key, null, Map.of("ids", ids), ip);
+            return new BulkResult(records.size());
+        }
+
+        int affected = 0;
+        for (Record r : records) {
+            Map<String, Object> merged = new LinkedHashMap<>(r.getData());
+            if (req.getSet() != null) {
+                merged.putAll(req.getSet());
+            }
+            Map<String, Object> data = recordValidator.validate(obj.getFields(), merged);
+            r.setData(data);
+            r.setTitle(recordValidator.deriveTitle(obj.getFields(), data));
+            r.setStatus(recordValidator.deriveStatus(obj.getFields(), data));
+            recordRepository.save(r);
+            affected++;
+        }
+        auditService.log(actor, "bulk_update", key, null,
+                Map.of("ids", records.stream().map(r -> r.getId().toString()).toList(), "set", req.getSet() != null ? req.getSet() : Map.of()), ip);
+        return new BulkResult(affected);
+    }
+
+    public List<Record> globalSearch(Actor actor, String q) {
+        if (q == null || q.length() < 2) {
+            return List.of();
+        }
+        List<Record> candidates = recordRepository.findByIsDeletedFalseAndTitleContainingOrderByUpdatedAtDesc(q)
+                .stream().limit(30).toList();
+
+        Map<UUID, Boolean> cache = new LinkedHashMap<>();
+        return candidates.stream()
+                .filter(r -> cache.computeIfAbsent(r.getObjectType().getId(),
+                        oid -> rbacService.resolve(actor.roleIds(), r.getObjectType().getKey(), PermAction.READ).allowed()))
+                .toList();
+    }
+
+    private PermScope authorize(Actor actor, String key, PermAction action) {
+        RbacService.Resolution resolution = rbacService.resolve(actor.roleIds(), key, action);
+        if (!resolution.allowed()) {
+            throw new RbacDeniedException("Permesso negato: " + action + " su " + key);
+        }
+        return resolution.scope();
+    }
+
+    private ObjectType objectOrThrow(String key) {
+        return objectTypeRepository.findByKey(key)
+                .orElseThrow(() -> new NotFoundException("Object type '" + key + "' non trovato"));
+    }
+}
