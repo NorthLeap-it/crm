@@ -43,3 +43,9 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// javac usa il charset di default della piattaforma se non specificato esplicitamente —
+// su Windows non è UTF-8, e corrompe le stringhe non-ASCII nel sorgente (es. "Opportunità")
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
