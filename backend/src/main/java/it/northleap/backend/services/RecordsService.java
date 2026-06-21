@@ -105,6 +105,7 @@ public class RecordsService {
         Map<String, Object> data = recordValidator.validate(obj.getFields(), merged);
 
         Map<String, Object> before = existing.getData();
+        String beforeStatus = existing.getStatus();
         existing.setTitle(dto.getTitle() != null ? dto.getTitle() : recordValidator.deriveTitle(obj.getFields(), data));
         existing.setStatus(dto.getStatus() != null ? dto.getStatus() : recordValidator.deriveStatus(obj.getFields(), data));
         existing.setOwnerId(dto.getOwnerId() != null ? dto.getOwnerId() : existing.getOwnerId());
@@ -112,7 +113,7 @@ public class RecordsService {
         recordRepository.save(existing);
 
         auditService.log(actor, "update", key, id.toString(), Map.of("before", before, "after", data), ip);
-        events.publishEvent(new RecordUpdatedEvent(key, existing, before));
+        events.publishEvent(new RecordUpdatedEvent(key, existing, before, beforeStatus));
         return existing;
     }
 
