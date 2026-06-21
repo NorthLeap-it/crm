@@ -36,12 +36,19 @@ public class RelationsService {
 
     @Transactional
     public RecordLink create(Actor actor, UUID sourceId, CreateLinkDto dto) {
-        assertWrite(actor, sourceId);
+        Record source = assertWrite(actor, sourceId);
+        // findById, non getReferenceById: il link viene serializzato così com'è nella risposta
+        // HTTP, e un proxy Hibernate non inizializzato (getReferenceById) trapela la proprietà
+        // interna hibernateLazyInitializer nel JSON quando Jackson lo attraversa - trovato in
+        // smoke test live, non un problema teorico
+        Record target = recordRepository.findById(dto.getTargetId())
+                .orElseThrow(() -> new NotFoundException("Record target non trovato"));
+
         RecordLink link = recordLinkRepository
                 .findBySource_IdAndTarget_IdAndRelationKey(sourceId, dto.getTargetId(), dto.getRelationKey())
                 .orElseGet(RecordLink::new);
-        link.setSource(recordRepository.getReferenceById(sourceId));
-        link.setTarget(recordRepository.getReferenceById(dto.getTargetId()));
+        link.setSource(source);
+        link.setTarget(target);
         link.setRelationKey(dto.getRelationKey());
         link.setData(dto.getData());
         recordLinkRepository.save(link);
@@ -56,12 +63,13 @@ public class RelationsService {
         recordLinkRepository.delete(link);
     }
 
-    private void assertWrite(Actor actor, UUID recordId) {
+    private Record assertWrite(Actor actor, UUID recordId) {
         Record record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new NotFoundException("Record non trovato"));
         RbacService.Resolution resolution = rbacService.resolve(actor.roleIds(), record.getObjectType().getKey(), PermAction.WRITE);
         if (!resolution.allowed()) {
             throw new RbacDeniedException();
         }
+        return record;
     }
 }
