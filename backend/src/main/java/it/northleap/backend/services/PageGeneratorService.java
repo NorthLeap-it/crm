@@ -27,6 +27,15 @@ public class PageGeneratorService {
     // da una transazione web/OSIV, e obj.getFields() è una collezione LAZY
     @Transactional
     public void generate(UUID objectTypeId) {
+        generate(objectTypeId, false);
+    }
+
+    // isSystem=true va usato solo per gli ObjectType seminati al bootstrap (replica
+    // l'isSystem:true che seed.ts assegna inline alle proprie pagine generate, distinto dal
+    // page-generator.service.ts riutilizzabile che invece non lo imposta mai — qui i due casi
+    // sono lo stesso metodo con un parametro, non duplicati come nell'originale)
+    @Transactional
+    public void generate(UUID objectTypeId, boolean isSystem) {
         ObjectType obj = objectTypeRepository.findById(objectTypeId).orElse(null);
         if (obj == null) {
             return;
@@ -34,12 +43,12 @@ public class PageGeneratorService {
         List<String> columns = obj.getFields().stream().limit(5).map(FieldDef::getKey).toList();
 
         upsertPage(obj.getKey() + ":list", obj.getPluralLabel(), PageType.LIST, obj,
-                Map.of("columns", columns));
+                Map.of("columns", columns), isSystem);
         upsertPage(obj.getKey() + ":detail", obj.getLabel(), PageType.DETAIL, obj,
-                Map.of("sections", List.of("fields", "relations", "timeline")));
+                Map.of("sections", List.of("fields", "relations", "timeline")), isSystem);
     }
 
-    private void upsertPage(String key, String label, PageType type, ObjectType obj, Map<String, Object> layout) {
+    private void upsertPage(String key, String label, PageType type, ObjectType obj, Map<String, Object> layout, boolean isSystem) {
         Page page = pageRepository.findByKey(key).orElseGet(Page::new);
         page.setKey(key);
         page.setLabel(label);
@@ -47,6 +56,7 @@ public class PageGeneratorService {
         page.setObjectType(obj);
         page.setLayout(layout);
         page.setGenerated(true);
+        page.setSystem(isSystem);
         pageRepository.save(page);
     }
 }

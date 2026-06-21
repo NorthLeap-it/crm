@@ -231,7 +231,7 @@ public class ObjectTypeSeeder implements ApplicationRunner {
                 fieldDefRepository.save(field);
             }
 
-            pageGeneratorService.generate(obj.getId());
+            pageGeneratorService.generate(obj.getId(), true);
         }
     }
 }
