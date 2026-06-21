@@ -1,7 +1,10 @@
 package it.northleap.backend.security;
 
+import it.northleap.backend.entities.ApiKey;
 import it.northleap.backend.entities.User;
+import it.northleap.backend.repositories.ApiKeyRepository;
 import it.northleap.backend.repositories.UserRoleRepository;
+import it.northleap.backend.services.HashUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +12,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,6 +22,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final UserRoleRepository userRoleRepository;
+    private final ApiKeyRepository apiKeyRepository;
 
     @Override
     protected void doFilterInternal(
@@ -39,6 +46,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // niente Bearer: prova X-Api-Key (02-RBAC.md - stessa estensione del filtro
+            // descritta lì, l'Actor risolto da qui invece che dal JWT)
+            String apiKeyHeader = request.getHeader("X-Api-Key");
+            if (apiKeyHeader != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                authenticateViaApiKey(request, apiKeyHeader);
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -81,4 +94,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    // Risolve un Actor (e soddisfa Spring Security's anyRequest().authenticated()) da una
+    // ApiKey valida (non revocata, non scaduta). UserDetails/Actor restano concetti paralleli
+    // (vedi 02-RBAC.md): qui non esiste uno User dietro la richiesta, quindi il principal di
+    // Spring Security è minimale (solo per soddisfare l'autenticazione "tecnica"), mentre
+    // l'Actor (type=APIKEY) è ciò che la logica RBAC custom usa davvero.
+    private void authenticateViaApiKey(HttpServletRequest request, String rawKey) {
+        ApiKey apiKey = apiKeyRepository.findByKeyHash(HashUtil.sha256Hex(rawKey)).orElse(null);
+        if (apiKey == null || apiKey.getRevokedAt() != null
+                || (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isBefore(Instant.now()))) {
+            return;
+        }
+
+        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                apiKey.getId().toString(), null, authorities
+        );
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        List<UUID> roleIds = apiKey.getRole() != null ? List.of(apiKey.getRole().getId()) : List.of();
+        request.setAttribute(Actor.REQUEST_ATTRIBUTE,
+                new Actor(apiKey.getId(), ActorType.APIKEY, null, roleIds));
+
+        apiKey.setLastUsedAt(Instant.now());
+        apiKeyRepository.save(apiKey);
+    }
 }
