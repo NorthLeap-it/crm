@@ -1,21 +1,61 @@
 <label for="app-drawer" class="drawer-overlay"></label>
-<aside class="bg-base-100 border-r border-base-300 w-64 min-h-full flex flex-col">
-  <div class="p-4 text-sm font-semibold text-base-content/50 uppercase tracking-wide">Oggetti</div>
-  <ul class="menu px-2 gap-0.5">
-    @for (obj of objects(); track obj.id) {
+<aside
+  class="bg-base-100 border-r border-base-300 min-h-full flex flex-col relative"
+  [style.width.px]="width()"
+  [class.transition-[width]]="!dragging()"
+  [class.select-none]="dragging()"
+>
+  <!-- logo (scala col rail) -->
+  <div class="flex items-center justify-center p-2 cursor-pointer">
+    <img
+      src="logo_minimale_con_bussola_stilizzata-removebg-preview.png"
+      alt="NorthLeap"
+      [class]="showLabels() ? 'w-32' : 'w-10'"
+      (click)="toDashboard()"
+    />
+  </div>
+
+  <ul class="menu px-1 gap-1 w-full">
+    @for (obj of objects() ?? []; track obj.id) {
       @if (obj.enabled) {
         <li>
-          <a [routerLink]="['/o', obj.key]" routerLinkActive="active" class="rounded-sm">
-            <lucide-icon [img]="iconFor(obj)" [size]="16" [style.color]="obj.color" />
-            {{ obj.pluralLabel }}
+          <a
+            [routerLink]="['/o', obj.key]"
+            routerLinkActive="active"
+            class="rounded-sm"
+            [class.justify-center]="!showLabels()"
+            [title]="obj.pluralLabel"
+          >
+            <lucide-icon [img]="iconFor(obj)" [size]="22" [style.color]="obj.color" />
+            @if (showLabels()) {
+              <span class="truncate">{{ obj.pluralLabel }}</span>
+            }
           </a>
         </li>
       }
     }
   </ul>
-  <div class="mt-auto p-2 border-t border-base-300">
-    <a routerLink="/settings" routerLinkActive="active" class="btn btn-ghost btn-sm rounded-sm w-full justify-start gap-2">
-      <lucide-icon [img]="SettingsIcon" [size]="16" /> Impostazioni
+
+  <div class="mt-auto p-1 border-t border-base-300">
+    <a
+      routerLink="/settings"
+      routerLinkActive="active"
+      class="btn btn-ghost btn-sm rounded-sm w-full gap-2"
+      [class.justify-center]="!showLabels()"
+      [class.justify-start]="showLabels()"
+      title="Impostazioni"
+    >
+      <lucide-icon [img]="SettingsIcon" [size]="20" />
+      @if (showLabels()) {
+        <span>Impostazioni</span>
+      }
     </a>
   </div>
+
+  <!-- maniglia di resize: trascina per allargare/stringere -->
+  <div
+    class="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40"
+    [class.bg-primary]="dragging()"
+    (mousedown)="startDrag($event)"
+  ></div>
 </aside>
