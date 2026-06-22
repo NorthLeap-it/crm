@@ -132,6 +132,10 @@ public class SecurityConfig {
                         // vuoto che maschera il vero status (400/500/altro) - bug trovato in
                         // smoke test live, non specifico di nessun endpoint in particolare.
                         .requestMatchers("/error").permitAll()
+                        // springdoc / Swagger UI: lo spec e la UI sono pubblici (solo in sviluppo
+                        // tipicamente; in produzione valuta se proteggerli). Senza questo,
+                        // anyRequest().authenticated() bloccherebbe il caricamento della UI.
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/status").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/onboarding").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()

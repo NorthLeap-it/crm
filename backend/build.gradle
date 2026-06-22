@@ -38,6 +38,10 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
+    // springdoc-openapi: genera lo spec OpenAPI 3 dai controller e monta la Swagger UI.
+    // La linea 3.0.x e' quella allineata a Spring Boot 4 / Spring Framework 7 / Jackson 3.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+
 }
 
 tasks.named('test') {
