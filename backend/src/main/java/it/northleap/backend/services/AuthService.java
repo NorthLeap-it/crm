@@ -7,6 +7,7 @@ import it.northleap.backend.entities.User;
 import it.northleap.backend.entities.UserRole;
 import it.northleap.backend.entities.UserRoleId;
 import it.northleap.backend.entities.Workspace;
+import it.northleap.backend.exceptions.BadRequestException;
 import it.northleap.backend.exceptions.InvalidRefreshTokenException;
 import it.northleap.backend.exceptions.WorkspaceAlreadyOnboardedException;
 import it.northleap.backend.repositories.RoleRepository;
@@ -124,6 +125,14 @@ public class AuthService {
     }
 
     public MeResponse me(UserPrincipal principal) {
+        // principal e' null quando la richiesta e' autenticata via X-Api-Key invece che JWT
+        // (Actor != UserPrincipal, vedi 02-RBAC.md) - @AuthenticationPrincipal non lancia da
+        // solo se il tipo non combacia, torna null silenziosamente; senza questo controllo
+        // principal.getUser() sotto andava in NullPointerException non gestita (trovato in
+        // smoke test live, risultava in un 500 invece di un 400 pulito)
+        if (principal == null) {
+            throw new BadRequestException("Questo endpoint richiede un utente autenticato via JWT, non una API key");
+        }
         User user = principal.getUser();
         List<String> roles = userRoleRepository.findByUser_Id(user.getId()).stream()
                 .map(userRole -> userRole.getRole().getKey())
