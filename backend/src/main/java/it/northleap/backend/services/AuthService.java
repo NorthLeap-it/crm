@@ -15,6 +15,7 @@ import it.northleap.backend.repositories.SessionRepository;
 import it.northleap.backend.repositories.UserRepository;
 import it.northleap.backend.repositories.UserRoleRepository;
 import it.northleap.backend.repositories.WorkspaceRepository;
+import it.northleap.backend.security.IssuedTokens;
 import it.northleap.backend.security.JwtService;
 import it.northleap.backend.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,7 +48,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse onboarding(OnboardingRequest request, HttpServletRequest httpRequest) {
+    public IssuedTokens onboarding(OnboardingRequest request, HttpServletRequest httpRequest) {
         if (isOnboarded()) {
             throw new WorkspaceAlreadyOnboardedException();
         }
@@ -75,7 +76,7 @@ public class AuthService {
         return issueTokens(user, httpRequest.getHeader("User-Agent"), httpRequest.getRemoteAddr());
     }
 
-    public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
+    public IssuedTokens login(LoginRequest request, HttpServletRequest httpRequest) {
         var authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
@@ -87,15 +88,19 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse refresh(RefreshRequest request) {
+    public IssuedTokens refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new InvalidRefreshTokenException();
+        }
+
         String userId;
         try {
-            userId = jwtService.extractUserIdFromRefresh(request.refreshToken());
+            userId = jwtService.extractUserIdFromRefresh(refreshToken);
         } catch (Exception e) {
             throw new InvalidRefreshTokenException();
         }
 
-        String hash = jwtService.hashToken(request.refreshToken());
+        String hash = jwtService.hashToken(refreshToken);
         Session session = sessionRepository.findByRefreshHash(hash)
                 .orElseThrow(InvalidRefreshTokenException::new);
 
@@ -114,8 +119,13 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(LogoutRequest request) {
-        String hash = jwtService.hashToken(request.refreshToken());
+    public void logout(String refreshToken) {
+        // niente cookie -> niente sessione da revocare, no-op silenzioso (stesso trattamento di
+        // NotificationService.markRead per un id che non combacia: non e' un errore del client)
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        String hash = jwtService.hashToken(refreshToken);
         sessionRepository.findByRefreshHash(hash).ifPresent(session -> {
             if (session.getRevokedAt() == null) {
                 session.setRevokedAt(Instant.now());
@@ -146,7 +156,7 @@ public class AuthService {
                 .orElse(false);
     }
 
-    private AuthResponse issueTokens(User user, String userAgent, String ip) {
+    private IssuedTokens issueTokens(User user, String userAgent, String ip) {
         UserPrincipal principal = new UserPrincipal(user);
         String accessToken = jwtService.generateAccessToken(principal);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -162,6 +172,7 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
 
-        return new AuthResponse(accessToken, refreshToken, user.getId(), user.getEmail(), user.getName());
+        AuthResponse body = new AuthResponse(user.getId(), user.getEmail(), user.getName());
+        return new IssuedTokens(accessToken, refreshToken, body);
     }
 }

@@ -35,6 +35,15 @@ public class JwtService {
     @Value("${app.jwt.expiration-refresh-ms}")
     private long expirationRefreshMs;
 
+    // esposte per AuthCookieService (max-age dei cookie deve combaciare con la scadenza reale del token)
+    public long getExpirationAccessMs() {
+        return expirationAccessMs;
+    }
+
+    public long getExpirationRefreshMs() {
+        return expirationRefreshMs;
+    }
+
     // genero token criptato hs256, contenente username, data, expiration
     public String generateAccessToken(UserDetails userDetails) {
         return Jwts.builder()

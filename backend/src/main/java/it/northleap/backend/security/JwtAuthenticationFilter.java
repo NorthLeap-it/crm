@@ -7,6 +7,7 @@ import it.northleap.backend.repositories.UserRoleRepository;
 import it.northleap.backend.services.HashUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotNull;
@@ -42,12 +43,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NotNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // parte header auth + token
+        // parte header auth + token. Ordine di precedenza: Authorization Bearer (client non
+        // browser, es. Postman/script) -> cookie access_token (la SPA Angular, httpOnly quindi
+        // mai letto da JS) -> X-Api-Key
         final String authHeader = request.getHeader("Authorization");
+        final String token = (authHeader != null && authHeader.startsWith("Bearer "))
+                ? authHeader.substring(7)
+                : readCookie(request, AuthCookieService.ACCESS_COOKIE_NAME);
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            // niente Bearer: prova X-Api-Key (02-RBAC.md - stessa estensione del filtro
-            // descritta lì, l'Actor risolto da qui invece che dal JWT)
+        if (token == null) {
+            // niente Bearer ne' cookie: prova X-Api-Key (02-RBAC.md - stessa estensione del
+            // filtro descritta lì, l'Actor risolto da qui invece che dal JWT)
             String apiKeyHeader = request.getHeader("X-Api-Key");
             if (apiKeyHeader != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 authenticateViaApiKey(request, apiKeyHeader);
@@ -56,7 +62,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        final String token = authHeader.substring(7);
         final String email;
 
         try {
@@ -92,6 +97,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String readCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName()) && !cookie.getValue().isBlank()) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 
     // Risolve un Actor (e soddisfa Spring Security's anyRequest().authenticated()) da una
