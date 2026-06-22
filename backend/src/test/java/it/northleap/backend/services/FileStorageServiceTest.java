@@ -80,4 +80,20 @@ class FileStorageServiceTest {
 
         assertThrows(NotFoundException.class, () -> service.get(id));
     }
+
+    @Test
+    void storeRejectsBlockedExtensions() {
+        MockMultipartFile exe = new MockMultipartFile("file", "setup.exe", "application/octet-stream", "x".getBytes());
+        assertThrows(BadRequestException.class, () -> service.store(exe, UUID.randomUUID(), null));
+
+        MockMultipartFile phpUpperCase = new MockMultipartFile("file", "shell.PHP", "text/plain", "x".getBytes());
+        assertThrows(BadRequestException.class, () -> service.store(phpUpperCase, UUID.randomUUID(), null));
+    }
+
+    @Test
+    void storeAllowsOrdinaryDocumentExtensions() {
+        MockMultipartFile pdf = new MockMultipartFile("file", "contratto.pdf", "application/pdf", "x".getBytes());
+        FileObject saved = service.store(pdf, UUID.randomUUID(), null);
+        assertTrue(saved.getPath().endsWith(".pdf"));
+    }
 }

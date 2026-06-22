@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.UUID;
 
 // Porting di FilesService (files.module.ts). Stesso approccio dell'originale: disco locale,
@@ -22,6 +23,16 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FileStorageService {
+
+    // estensioni bloccate per default: l'originale non ha nessuna whitelist/blacklist (i file
+    // sono solo salvati e riserviti come allegato, mai eseguiti server-side), ma una blocklist
+    // dei tipi più ovviamente pericolosi è una difesa in profondità a costo quasi zero -
+    // deviazione di hardening dichiarata, non fedeltà di porting
+    private static final Set<String> BLOCKED_EXTENSIONS = Set.of(
+            ".exe", ".dll", ".bat", ".cmd", ".sh", ".bash", ".ps1", ".msi", ".com", ".scr",
+            ".php", ".php3", ".php4", ".php5", ".phtml", ".jsp", ".jspx", ".asp", ".aspx",
+            ".jar", ".js", ".vbs", ".wsf", ".cgi", ".htaccess"
+    );
 
     private final FileObjectRepository fileObjectRepository;
 
@@ -45,6 +56,9 @@ public class FileStorageService {
     @Transactional
     public FileObject store(MultipartFile file, UUID actorId, UUID recordId) {
         String extension = extensionOf(file.getOriginalFilename());
+        if (BLOCKED_EXTENSIONS.contains(extension.toLowerCase())) {
+            throw new BadRequestException("Tipo di file non consentito: " + extension);
+        }
         String diskName = UUID.randomUUID() + extension;
         Path target = uploadDir().resolve(diskName);
 
