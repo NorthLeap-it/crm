@@ -72,3 +72,8 @@ export interface UpsertRecordDto {
   ownerId?: string;
   data: Record<string, unknown>;
 }
+
+// GET /api/records/search ritorna i Record con l'objectType annidato (per linkare al dettaglio)
+export interface SearchResult extends RecordItem {
+  objectType: { key: string; label: string };
+}

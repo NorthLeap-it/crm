@@ -1,0 +1,30 @@
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-semibold mb-4">Ricerca</h1>
+
+  <input
+    [formControl]="query"
+    type="search"
+    class="input rounded-sm w-full"
+    placeholder="Cerca record (min 2 caratteri)…"
+    autofocus
+  />
+
+  <div class="mt-4">
+    @if (loading()) {
+      <div class="flex justify-center py-8"><ui-spinner /></div>
+    } @else if (results().length > 0) {
+      <ul class="divide-y divide-base-300 border border-base-300 rounded-sm">
+        @for (r of results(); track r.id) {
+          <li>
+            <a [routerLink]="['/o', r.objectType.key, r.id]" class="flex items-center justify-between p-3 hover:bg-base-200">
+              <span>{{ r.title || '(senza titolo)' }}</span>
+              <span class="badge badge-ghost rounded-sm">{{ r.objectType.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    } @else if (searched()) {
+      <p class="text-center py-8 text-base-content/50">Nessun risultato.</p>
+    }
+  </div>
+</div>

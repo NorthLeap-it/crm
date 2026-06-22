@@ -32,8 +32,7 @@ export const routes: Routes = [
       },
       {
         path: 'search',
-        loadComponent: () => import('./pages/placeholder/placeholder').then((m) => m.Placeholder),
-        data: { title: 'Ricerca' }
+        loadComponent: () => import('./pages/search/search').then((m) => m.Search)
       },
       {
         path: 'settings',

@@ -8,6 +8,7 @@ import {
   RecordDetailResponse,
   RecordItem,
   RecordQueryResponse,
+  SearchResult,
   UpsertRecordDto
 } from '../models/record';
 
@@ -49,8 +50,8 @@ export class RecordsService {
     return this.http.delete<void>(`${this.base}/${key}/${id}`);
   }
 
-  search(q: string): Observable<RecordItem[]> {
+  search(q: string): Observable<SearchResult[]> {
     const params = new HttpParams().set('q', q);
-    return this.http.get<RecordItem[]>(`${this.base}/search`, { params });
+    return this.http.get<SearchResult[]>(`${this.base}/search`, { params });
   }
 }
