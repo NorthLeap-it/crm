@@ -2,13 +2,14 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 
 import { FieldDef, FieldType } from '../../models/object-type';
+import { RelationInput } from '../relation-input/relation-input';
 import { UiButton } from '../ui/button';
 import { UiLabel } from '../ui/label';
 
 // come renderizzare un campo in base al suo FieldType (semplifica i 39 tipi nei pochi widget
-// realmente diversi). I tipi non interattivi/avanzati (RELATION/FILE/JSON/FORMULA/...) ricadono
-// su un input testuale per ora - RelationInput e gli editor dedicati arrivano piu' avanti.
-type RenderKind = 'text' | 'number' | 'textarea' | 'boolean' | 'select' | 'multiselect' | 'date' | 'datetime' | 'time' | 'color';
+// realmente diversi). I tipi avanzati restanti (FILE/JSON/FORMULA/...) ricadono su un input
+// testuale per ora - gli editor dedicati arrivano piu' avanti.
+type RenderKind = 'text' | 'number' | 'textarea' | 'boolean' | 'select' | 'multiselect' | 'date' | 'datetime' | 'time' | 'color' | 'relation';
 
 function renderKind(type: FieldType): RenderKind {
   switch (type) {
@@ -44,6 +45,9 @@ function renderKind(type: FieldType): RenderKind {
       return 'time';
     case 'COLOR':
       return 'color';
+    case 'RELATION':
+    case 'LOOKUP':
+      return 'relation';
     default:
       return 'text';
   }
@@ -63,7 +67,7 @@ interface Section {
 @Component({
   selector: 'app-dynamic-form',
   standalone: true,
-  imports: [ReactiveFormsModule, UiButton, UiLabel],
+  imports: [ReactiveFormsModule, RelationInput, UiButton, UiLabel],
   templateUrl: './dynamic-form.html'
 })
 export class DynamicForm {

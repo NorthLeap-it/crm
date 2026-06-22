@@ -1,0 +1,33 @@
+<div class="relative">
+  @if (selected().length > 0) {
+    <div class="flex flex-wrap gap-1 mb-1">
+      @for (rec of selected(); track rec.id) {
+        <span class="badge badge-neutral rounded-sm gap-1">
+          {{ rec.title || '(senza titolo)' }}
+          <button type="button" class="text-xs" (click)="unpick(rec)" aria-label="Rimuovi">✕</button>
+        </span>
+      }
+    </div>
+  }
+
+  <input
+    [formControl]="search"
+    type="text"
+    class="input rounded-sm w-full"
+    [placeholder]="targetKey() ? 'Cerca…' : 'Nessun target configurato'"
+    [disabled]="!targetKey()"
+    (focus)="open.set(true)"
+  />
+
+  @if (open() && results().length > 0) {
+    <ul class="absolute z-20 mt-1 w-full bg-base-100 border border-base-300 rounded-sm shadow max-h-56 overflow-y-auto">
+      @for (rec of results(); track rec.id) {
+        <li>
+          <button type="button" class="w-full text-left px-3 py-2 hover:bg-base-200" (click)="pick(rec)">
+            {{ rec.title || '(senza titolo)' }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

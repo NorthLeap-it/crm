@@ -36,6 +36,13 @@
                 }
               </select>
             }
+            @case ('relation') {
+              <app-relation-input
+                [field]="rf.def"
+                [value]="form().get(rf.def.key)?.value"
+                (valueChange)="form().get(rf.def.key)?.setValue($event)"
+              />
+            }
             @default {
               <input
                 [type]="rf.inputType"
