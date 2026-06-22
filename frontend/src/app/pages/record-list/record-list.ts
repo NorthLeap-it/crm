@@ -1,13 +1,13 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
+import { Subject, catchError, combineLatest, filter, map, of, startWith, switchMap, tap } from 'rxjs';
 
 import { Drawer } from '../../components/drawer/drawer';
 import { DynamicForm } from '../../components/dynamic-form/dynamic-form';
 import { UiButton } from '../../components/ui/button';
 import { UiSpinner } from '../../components/ui/spinner';
-import { FieldDef, ObjectType } from '../../models/object-type';
+import { FieldDef } from '../../models/object-type';
 import { RecordItem } from '../../models/record';
 import { RecordsService } from '../../services/records.service';
 
@@ -21,19 +21,41 @@ export class RecordList {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly recordsService = inject(RecordsService);
-
-  // la rotta /o/:objectKey puo' cambiare key senza distruggere il componente: reagiamo al param
-  protected readonly objectKey = toSignal(this.route.paramMap.pipe(map((p) => p.get('objectKey') ?? '')), {
-    initialValue: ''
-  });
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly loading = signal(true);
-  protected readonly object = signal<ObjectType | null>(null);
-  protected readonly records = signal<RecordItem[]>([]);
-  protected readonly total = signal(0);
-
   protected readonly drawerOpen = signal(false);
   protected readonly submitting = signal(false);
+
+  // trigger di ricarica (dopo una create) che si fonde con i cambi di rotta nello stream dati
+  private readonly reload$ = new Subject<void>();
+
+  private readonly key$ = this.route.paramMap.pipe(map((p) => p.get('objectKey') ?? ''));
+
+  // la chiave di rotta esposta come signal (serve a openRecord/createRecord)
+  protected readonly objectKey = toSignal(this.key$, { initialValue: '' });
+
+  // stream dati: a ogni cambio di key o reload, interroga il backend (switchMap annulla la
+  // richiesta precedente se la key cambia in corsa). HttpClient -> Observable, niente subscribe
+  // nudo: il risultato finisce in un signal via toSignal.
+  private readonly result = toSignal(
+    combineLatest([this.key$, this.reload$.pipe(startWith(undefined))]).pipe(
+      map(([key]) => key),
+      filter((key): key is string => key.length > 0),
+      tap(() => this.loading.set(true)),
+      switchMap((key) =>
+        this.recordsService.query(key, { pageSize: 200 }).pipe(catchError(() => of(null)))
+      ),
+      tap(() => this.loading.set(false))
+    ),
+    { initialValue: null }
+  );
+
+  // stato derivato dalla risposta
+  protected readonly object = computed(() => this.result()?.object ?? null);
+  protected readonly records = computed(() => this.result()?.items ?? []);
+  protected readonly total = computed(() => this.result()?.total ?? 0);
+  protected readonly formFields = computed<FieldDef[]>(() => this.object()?.fields ?? []);
 
   // colonne: i field con showInList, fallback ai primi 6 (stesso criterio dell'originale)
   protected readonly columns = computed<FieldDef[]>(() => {
@@ -44,29 +66,6 @@ export class RecordList {
       (a, b) => a.sortOrder - b.sortOrder
     );
   });
-
-  protected readonly formFields = computed<FieldDef[]>(() => this.object()?.fields ?? []);
-
-  constructor() {
-    // ricarica quando cambia la key
-    this.route.paramMap.subscribe((params) => {
-      const key = params.get('objectKey');
-      if (key) this.reload(key);
-    });
-  }
-
-  private reload(key: string): void {
-    this.loading.set(true);
-    this.recordsService.query(key, { pageSize: 200 }).subscribe({
-      next: (res) => {
-        this.object.set(res.object);
-        this.records.set(res.items);
-        this.total.set(res.total);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false)
-    });
-  }
 
   protected cellValue(rec: RecordItem, field: FieldDef): string {
     const raw = field.key === 'status' ? rec.status : rec.data[field.key];
@@ -82,13 +81,17 @@ export class RecordList {
 
   protected createRecord(data: Record<string, unknown>): void {
     this.submitting.set(true);
-    this.recordsService.create(this.objectKey(), { data }).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.drawerOpen.set(false);
-        this.reload(this.objectKey());
-      },
-      error: () => this.submitting.set(false)
-    });
+    // azione one-shot: subscribe con teardown legato al ciclo di vita del componente
+    this.recordsService
+      .create(this.objectKey(), { data })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.drawerOpen.set(false);
+          this.reload$.next();
+        },
+        error: () => this.submitting.set(false)
+      });
   }
 }

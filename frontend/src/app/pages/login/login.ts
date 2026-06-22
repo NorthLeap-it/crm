@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
@@ -17,6 +18,7 @@ export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -34,15 +36,18 @@ export class Login {
     this.submitting.set(true);
     this.error.set(null);
     const { email, password } = this.form.getRawValue();
-    this.auth.login(email, password).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.router.navigate(['/']);
-      },
-      error: () => {
-        this.submitting.set(false);
-        this.error.set('Credenziali non valide');
-      }
-    });
+    this.auth
+      .login(email, password)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.router.navigate(['/']);
+        },
+        error: () => {
+          this.submitting.set(false);
+          this.error.set('Credenziali non valide');
+        }
+      });
   }
 }

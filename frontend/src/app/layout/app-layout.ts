@@ -1,5 +1,7 @@
-import { Component, OnDestroy, OnInit, computed, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { switchMap, timer } from 'rxjs';
 import {
   LucideAngularModule,
   Home,
@@ -26,14 +28,13 @@ const NOTIFICATION_POLL_MS = 60_000;
   imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
   templateUrl: './app-layout.html'
 })
-export class AppLayout implements OnInit, OnDestroy {
+export class AppLayout implements OnInit {
   private readonly objectTypeService = inject(ObjectTypeService);
   private readonly notificationService = inject(NotificationService);
   private readonly auth = inject(AuthService);
   private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
-
-  private pollHandle?: ReturnType<typeof setInterval>;
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly objects = this.objectTypeService.objects;
   protected readonly user = this.auth.user;
@@ -56,14 +57,17 @@ export class AppLayout implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.objectTypeService.load().subscribe();
-    this.notificationService.refresh().subscribe();
-    // polling: niente realtime lato backend, si aggiorna a intervalli (vedi NotificationService)
-    this.pollHandle = setInterval(() => this.notificationService.refresh().subscribe(), NOTIFICATION_POLL_MS);
-  }
+    this.objectTypeService.load().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
 
-  ngOnDestroy(): void {
-    if (this.pollHandle) clearInterval(this.pollHandle);
+    // polling notifiche: niente realtime lato backend (vedi NotificationService), si rinfresca a
+    // intervalli. timer(0, N) parte subito e poi ogni N ms; switchMap annulla la chiamata in volo
+    // se ne parte un'altra. Teardown automatico con takeUntilDestroyed.
+    timer(0, NOTIFICATION_POLL_MS)
+      .pipe(
+        switchMap(() => this.notificationService.refresh()),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
   }
 
   protected toggleTheme(): void {
@@ -71,10 +75,13 @@ export class AppLayout implements OnInit, OnDestroy {
   }
 
   protected markAllRead(): void {
-    this.notificationService.markAllRead().subscribe();
+    this.notificationService.markAllRead().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
   }
 
   protected logout(): void {
-    this.auth.logout().subscribe(() => this.router.navigate(['/login']));
+    this.auth
+      .logout()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.router.navigate(['/login']));
   }
 }

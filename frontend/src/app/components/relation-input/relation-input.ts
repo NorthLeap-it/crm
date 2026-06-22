@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, model, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, map, of, switchMap, tap } from 'rxjs';
 
 import { FieldDef } from '../../models/object-type';
 import { RecordItem } from '../../models/record';
@@ -23,32 +24,29 @@ export class RelationInput {
   readonly value = model<string | string[] | null>(null);
 
   protected readonly search = new FormControl('', { nonNullable: true });
-  protected readonly results = signal<RecordItem[]>([]);
   protected readonly selected = signal<RecordItem[]>([]);
   protected readonly open = signal(false);
 
   protected readonly targetKey = computed(() => (this.field().config?.['targetObject'] as string) ?? '');
   protected readonly multiple = computed(() => this.field().config?.['multiple'] === true);
 
-  constructor() {
-    this.search.valueChanges
-      .pipe(
-        debounceTime(250),
-        distinctUntilChanged(),
-        switchMap((q) => {
-          const term = q.trim();
-          if (term.length < 1 || !this.targetKey()) {
-            this.results.set([]);
-            return [];
-          }
-          return this.recordsService.query(this.targetKey(), { q: term, pageSize: 8 });
-        })
-      )
-      .subscribe((res) => {
-        this.results.set('items' in res ? res.items : []);
-        this.open.set(true);
-      });
-  }
+  // risultati della ricerca come stream -> signal (niente subscribe nel costruttore)
+  protected readonly results = toSignal(
+    this.search.valueChanges.pipe(
+      debounceTime(250),
+      map((q) => q.trim()),
+      distinctUntilChanged(),
+      switchMap((term) => {
+        if (term.length < 1 || !this.targetKey()) return of<RecordItem[]>([]);
+        return this.recordsService.query(this.targetKey(), { q: term, pageSize: 8 }).pipe(
+          map((res) => res.items),
+          tap(() => this.open.set(true)),
+          catchError(() => of<RecordItem[]>([]))
+        );
+      })
+    ),
+    { initialValue: [] as RecordItem[] }
+  );
 
   protected pick(rec: RecordItem): void {
     if (this.multiple()) {
@@ -61,8 +59,8 @@ export class RelationInput {
       this.selected.set([rec]);
       this.value.set(rec.id);
     }
+    // setValue('') rifluisce nello stream e azzera i risultati; chiudiamo subito il dropdown
     this.search.setValue('');
-    this.results.set([]);
     this.open.set(false);
   }
 

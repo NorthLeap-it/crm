@@ -1,13 +1,20 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ChartConfiguration } from 'chart.js';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 
 import { ChartComponent } from '../../components/chart/chart';
 import { UiCard } from '../../components/ui/card';
 import { UiSpinner } from '../../components/ui/spinner';
 import { ObjectType } from '../../models/object-type';
-import { AnalyticsService } from '../../services/analytics.service';
+import {
+  ActivityPoint,
+  AnalyticsService,
+  EfficiencyPoint,
+  PipelinePoint,
+  RevenuePoint
+} from '../../services/analytics.service';
 import { ObjectTypeService } from '../../services/object-type.service';
 import { RecordsService } from '../../services/records.service';
 
@@ -16,108 +23,126 @@ interface Kpi {
   count: number;
 }
 
+interface AnalyticsData {
+  revenue: RevenuePoint[];
+  pipeline: PipelinePoint[];
+  activity: ActivityPoint[];
+  efficiency: EfficiencyPoint[];
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [RouterLink, ChartComponent, UiCard, UiSpinner],
   templateUrl: './dashboard.html'
 })
-export class Dashboard implements OnInit {
+export class Dashboard {
   private readonly objectTypeService = inject(ObjectTypeService);
   private readonly recordsService = inject(RecordsService);
   private readonly analytics = inject(AnalyticsService);
 
-  protected readonly kpis = signal<Kpi[]>([]);
   protected readonly loadingKpis = signal(true);
   protected readonly loadingCharts = signal(true);
 
-  protected readonly revenueChart = signal<ChartConfiguration | null>(null);
-  protected readonly pipelineChart = signal<ChartConfiguration | null>(null);
-  protected readonly activityChart = signal<ChartConfiguration | null>(null);
-  protected readonly efficiencyChart = signal<ChartConfiguration | null>(null);
-
-  ngOnInit(): void {
-    this.loadKpis();
-    this.loadCharts();
-  }
-
-  // una KPI card per ObjectType abilitato (max 8): conteggio via query pageSize=1 leggendo total.
-  // Spreco noto (scarica anche 1 record), eredita' dall'originale - niente endpoint count dedicato
-  // lato backend, da migliorare in futuro.
-  private loadKpis(): void {
-    this.objectTypeService.load().subscribe((objects) => {
-      const enabled = objects.filter((o) => o.enabled).slice(0, 8);
-      if (enabled.length === 0) {
+  // KPI: una card per ObjectType abilitato (max 8), conteggio via query pageSize=1 leggendo total.
+  // Spreco noto (scarica anche 1 record), eredita' dall'originale - niente endpoint count dedicato.
+  protected readonly kpis = toSignal(
+    this.objectTypeService.load().pipe(
+      map((objects) => objects.filter((o) => o.enabled).slice(0, 8)),
+      switchMap((enabled) =>
+        enabled.length === 0
+          ? of<Kpi[]>([])
+          : forkJoin(enabled.map((o) => this.recordsService.query(o.key, { pageSize: 1 }))).pipe(
+              map((responses) => enabled.map((object, i) => ({ object, count: responses[i].total })))
+            )
+      ),
+      tap(() => this.loadingKpis.set(false)),
+      catchError(() => {
         this.loadingKpis.set(false);
-        return;
-      }
-      forkJoin(enabled.map((o) => this.recordsService.query(o.key, { pageSize: 1 }))).subscribe({
-        next: (responses) => {
-          this.kpis.set(enabled.map((object, i) => ({ object, count: responses[i].total })));
-          this.loadingKpis.set(false);
-        },
-        error: () => this.loadingKpis.set(false)
-      });
-    });
-  }
+        return of<Kpi[]>([]);
+      })
+    ),
+    { initialValue: [] as Kpi[] }
+  );
 
-  private loadCharts(): void {
+  private readonly data = toSignal(
     forkJoin({
       revenue: this.analytics.revenue(),
       pipeline: this.analytics.pipeline(),
       activity: this.analytics.activity(),
       efficiency: this.analytics.efficiency()
-    }).subscribe({
-      next: ({ revenue, pipeline, activity, efficiency }) => {
-        this.revenueChart.set({
-          type: 'line',
-          data: {
-            labels: revenue.map((p) => p.month),
-            datasets: [
-              { label: 'Fatturato', data: revenue.map((p) => p.fatturato), borderColor: '#2563eb', backgroundColor: '#2563eb33', fill: true, tension: 0.3 },
-              { label: 'Costi', data: revenue.map((p) => p.costi), borderColor: '#ef4444', backgroundColor: '#ef444433', fill: true, tension: 0.3 }
-            ]
-          },
-          options: chartOptions()
-        });
-        this.pipelineChart.set({
-          type: 'doughnut',
-          data: {
-            labels: pipeline.map((p) => p.name),
-            datasets: [{ data: pipeline.map((p) => p.value), backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'] }]
-          },
-          options: chartOptions()
-        });
-        this.activityChart.set({
-          type: 'bar',
-          data: {
-            labels: activity.map((p) => p.month),
-            datasets: [
-              { label: 'Attività', data: activity.map((p) => p['attività']), backgroundColor: '#2563eb' },
-              { label: 'Completate', data: activity.map((p) => p.completate), backgroundColor: '#10b981' }
-            ]
-          },
-          options: chartOptions()
-        });
-        this.efficiencyChart.set({
-          type: 'line',
-          data: {
-            labels: efficiency.map((p) => p.month),
-            datasets: [{ label: 'Efficienza %', data: efficiency.map((p) => p.efficienza), borderColor: '#8b5cf6', backgroundColor: '#8b5cf633', fill: true, tension: 0.3 }]
-          },
-          options: chartOptions()
-        });
+    }).pipe(
+      tap(() => this.loadingCharts.set(false)),
+      catchError(() => {
         this.loadingCharts.set(false);
+        return of<AnalyticsData | null>(null);
+      })
+    ),
+    { initialValue: null as AnalyticsData | null }
+  );
+
+  // ogni chart config deriva dai dati con un computed
+  protected readonly revenueChart = computed<ChartConfiguration | null>(() => {
+    const d = this.data();
+    if (!d) return null;
+    return {
+      type: 'line',
+      data: {
+        labels: d.revenue.map((p) => p.month),
+        datasets: [
+          { label: 'Fatturato', data: d.revenue.map((p) => p.fatturato), borderColor: '#2563eb', backgroundColor: '#2563eb33', fill: true, tension: 0.3 },
+          { label: 'Costi', data: d.revenue.map((p) => p.costi), borderColor: '#ef4444', backgroundColor: '#ef444433', fill: true, tension: 0.3 }
+        ]
       },
-      error: () => this.loadingCharts.set(false)
-    });
-  }
+      options: CHART_OPTIONS
+    };
+  });
+
+  protected readonly pipelineChart = computed<ChartConfiguration | null>(() => {
+    const d = this.data();
+    if (!d) return null;
+    return {
+      type: 'doughnut',
+      data: {
+        labels: d.pipeline.map((p) => p.name),
+        datasets: [{ data: d.pipeline.map((p) => p.value), backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'] }]
+      },
+      options: CHART_OPTIONS
+    };
+  });
+
+  protected readonly activityChart = computed<ChartConfiguration | null>(() => {
+    const d = this.data();
+    if (!d) return null;
+    return {
+      type: 'bar',
+      data: {
+        labels: d.activity.map((p) => p.month),
+        datasets: [
+          { label: 'Attività', data: d.activity.map((p) => p['attività']), backgroundColor: '#2563eb' },
+          { label: 'Completate', data: d.activity.map((p) => p.completate), backgroundColor: '#10b981' }
+        ]
+      },
+      options: CHART_OPTIONS
+    };
+  });
+
+  protected readonly efficiencyChart = computed<ChartConfiguration | null>(() => {
+    const d = this.data();
+    if (!d) return null;
+    return {
+      type: 'line',
+      data: {
+        labels: d.efficiency.map((p) => p.month),
+        datasets: [{ label: 'Efficienza %', data: d.efficiency.map((p) => p.efficienza), borderColor: '#8b5cf6', backgroundColor: '#8b5cf633', fill: true, tension: 0.3 }]
+      },
+      options: CHART_OPTIONS
+    };
+  });
 }
 
-function chartOptions(): ChartConfiguration['options'] {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom' } }
-  };
-}
+const CHART_OPTIONS: ChartConfiguration['options'] = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'bottom' } }
+};

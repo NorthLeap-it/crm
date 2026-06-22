@@ -1,15 +1,23 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 
 import { UiSpinner } from '../../components/ui/spinner';
 import { SearchResult } from '../../models/record';
 import { RecordsService } from '../../services/records.service';
 
-// Ricerca globale: GET /api/records/search?q= (min 2 char lato backend, ILIKE sul title, filtrata
-// per permesso READ). Debounce per non bombardare il backend a ogni tasto - miglioria rispetto
-// all'originale React, che faceva una query a ogni keystroke.
+interface SearchState {
+  loading: boolean;
+  results: SearchResult[];
+  searched: boolean;
+}
+
+const IDLE: SearchState = { loading: false, results: [], searched: false };
+
+// Ricerca globale: GET /api/records/search?q= (min 2 char lato backend). Debounce per non
+// bombardare il backend a ogni tasto. Tutto come stream: l'input -> toSignal di uno stato.
 @Component({
   selector: 'app-search',
   standalone: true,
@@ -20,33 +28,26 @@ export class Search {
   private readonly recordsService = inject(RecordsService);
 
   protected readonly query = new FormControl('', { nonNullable: true });
-  protected readonly results = signal<SearchResult[]>([]);
-  protected readonly loading = signal(false);
-  protected readonly searched = signal(false);
 
-  constructor() {
-    this.query.valueChanges
-      .pipe(
-        debounceTime(300),
-        distinctUntilChanged(),
-        switchMap((q) => {
-          const term = q.trim();
-          if (term.length < 2) {
-            this.results.set([]);
-            this.searched.set(false);
-            return [];
-          }
-          this.loading.set(true);
-          return this.recordsService.search(term);
-        })
-      )
-      .subscribe({
-        next: (res) => {
-          this.results.set(res);
-          this.loading.set(false);
-          this.searched.set(true);
-        },
-        error: () => this.loading.set(false)
-      });
-  }
+  private readonly state = toSignal(
+    this.query.valueChanges.pipe(
+      debounceTime(300),
+      map((q) => q.trim()),
+      distinctUntilChanged(),
+      switchMap((term) => {
+        if (term.length < 2) return of(IDLE);
+        return this.recordsService.search(term).pipe(
+          map((results) => ({ loading: false, results, searched: true })),
+          catchError(() => of({ loading: false, results: [], searched: true })),
+          startWith({ loading: true, results: [] as SearchResult[], searched: false })
+        );
+      }),
+      startWith(IDLE)
+    ),
+    { initialValue: IDLE }
+  );
+
+  protected readonly loading = computed(() => this.state().loading);
+  protected readonly results = computed(() => this.state().results);
+  protected readonly searched = computed(() => this.state().searched);
 }

@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, OnInit, computed, inject, input, output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 
 import { FieldDef, FieldType } from '../../models/object-type';
@@ -70,7 +70,7 @@ interface Section {
   imports: [ReactiveFormsModule, RelationInput, UiButton, UiLabel],
   templateUrl: './dynamic-form.html'
 })
-export class DynamicForm {
+export class DynamicForm implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly fields = input.required<FieldDef[]>();
@@ -79,6 +79,26 @@ export class DynamicForm {
 
   readonly save = output<Record<string, unknown>>();
   readonly cancel = output<void>();
+
+  // FormGroup costruito UNA volta in ngOnInit (gli input sono disponibili e stabili a quel
+  // punto: questo componente viene ricreato a ogni apertura del drawer create/edit). Non lo
+  // costruiamo in un computed() perche' un FormGroup e' stato mutabile, non valore derivato.
+  protected form!: FormGroup;
+
+  ngOnInit(): void {
+    this.form = this.buildForm();
+  }
+
+  private buildForm(): FormGroup {
+    const group: Record<string, unknown> = {};
+    const data = this.initialData();
+    for (const def of this.fields()) {
+      if (def.type === 'AUTONUMBER' || def.type === 'FORMULA' || def.type === 'ROLLUP') continue;
+      const initial = data[def.key] ?? def.defaultValue ?? defaultFor(def);
+      group[def.key] = [{ value: initial, disabled: def.readonly }, buildValidators(def)];
+    }
+    return this.fb.group(group);
+  }
 
   // i campi visibili e non readonly, in ordine, raggruppati per `section` (preservando l'ordine
   // di prima apparizione della sezione - stesso comportamento del DynamicForm React originale)
@@ -101,29 +121,16 @@ export class DynamicForm {
     return order.map((name) => ({ name, fields: bySection.get(name)! }));
   });
 
-  // FormGroup ricostruito quando cambiano fields o initialData
-  protected readonly form = computed<FormGroup>(() => {
-    const group: Record<string, unknown> = {};
-    const data = this.initialData();
-    for (const def of this.fields()) {
-      if (def.type === 'AUTONUMBER' || def.type === 'FORMULA' || def.type === 'ROLLUP') continue;
-      const initial = data[def.key] ?? def.defaultValue ?? defaultFor(def);
-      group[def.key] = [{ value: initial, disabled: def.readonly }, buildValidators(def)];
-    }
-    return this.fb.group(group);
-  });
-
   protected optionsOf(def: FieldDef) {
     return def.options ?? [];
   }
 
   protected submit(): void {
-    const form = this.form();
-    if (form.invalid || this.submitting()) {
-      form.markAllAsTouched();
+    if (this.form.invalid || this.submitting()) {
+      this.form.markAllAsTouched();
       return;
     }
-    this.save.emit(form.getRawValue());
+    this.save.emit(this.form.getRawValue());
   }
 }
 

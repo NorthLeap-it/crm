@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
@@ -17,6 +18,7 @@ export class Onboarding {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   // due step come l'originale React: workspace+brand color, poi owner+password
   protected readonly step = signal(1);
@@ -52,15 +54,18 @@ export class Onboarding {
     this.submitting.set(true);
     this.error.set(null);
     const { workspaceName, name, email, password } = this.form.getRawValue();
-    this.auth.onboarding({ workspaceName, name, email, password }).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.router.navigate(['/']);
-      },
-      error: (err) => {
-        this.submitting.set(false);
-        this.error.set(err?.error?.message ?? 'Errore durante la configurazione');
-      }
-    });
+    this.auth
+      .onboarding({ workspaceName, name, email, password })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.router.navigate(['/']);
+        },
+        error: (err) => {
+          this.submitting.set(false);
+          this.error.set(err?.error?.message ?? 'Errore durante la configurazione');
+        }
+      });
   }
 }

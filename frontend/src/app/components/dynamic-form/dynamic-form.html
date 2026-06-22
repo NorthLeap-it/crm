@@ -1,4 +1,4 @@
-<form [formGroup]="form()" (ngSubmit)="submit()" class="space-y-5">
+<form [formGroup]="form" (ngSubmit)="submit()" class="space-y-5">
   @for (section of sections(); track section.name) {
     <fieldset class="space-y-3">
       @if (sections().length > 1 || section.name !== 'Generale') {
@@ -39,8 +39,8 @@
             @case ('relation') {
               <app-relation-input
                 [field]="rf.def"
-                [value]="form().get(rf.def.key)?.value"
-                (valueChange)="form().get(rf.def.key)?.setValue($event)"
+                [value]="form.get(rf.def.key)?.value"
+                (valueChange)="form.get(rf.def.key)?.setValue($event)"
               />
             }
             @default {
@@ -59,7 +59,7 @@
           @if (rf.def.description) {
             <p class="text-xs text-base-content/50 mt-1">{{ rf.def.description }}</p>
           }
-          @if (form().get(rf.def.key)?.touched && form().get(rf.def.key)?.invalid) {
+          @if (form.get(rf.def.key)?.touched && form.get(rf.def.key)?.invalid) {
             <p class="text-error text-xs mt-1">Valore non valido</p>
           }
         </div>
