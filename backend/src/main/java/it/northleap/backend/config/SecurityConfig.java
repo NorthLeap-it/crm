@@ -1,7 +1,9 @@
 package it.northleap.backend.config;
 
+import it.northleap.backend.security.CsrfCookieFilter;
 import it.northleap.backend.security.JwtAuthenticationFilter;
 import it.northleap.backend.security.RateLimitFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -18,11 +20,17 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 @EnableWebSecurity
@@ -33,18 +41,17 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitFilter rateLimitFilter;
 
-    // origini ammesse per il frontend (Angular dev server di default) - mai wildcard "*" qui:
-    // le richieste includono credenziali (header Authorization/X-Api-Key), e CORS vieta
-    // esplicitamente di combinare wildcard origin con credenziali consentite
+    // origini ammesse, angular di default. Non metto mai * qui
     @Value("${app.cors.allowed-origins:http://localhost:4200}")
     private List<String> allowedOrigins;
 
+    // config cors con vari permessi
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Api-Key", "X-Signature"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Api-Key", "X-Signature", "X-XSRF-TOKEN"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
@@ -53,6 +60,7 @@ public class SecurityConfig {
         return source;
     }
 
+    // oggetto per criptare la passwd
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -70,12 +78,49 @@ public class SecurityConfig {
         return new org.springframework.security.authentication.ProviderManager(provider);
     }
 
+    // gestisce problema csrf -> per richieste safe, non serve crsf
+    // se usa x-api-key, probabilmente è rest o postman, quindi non sono vulnerabili a crsf
+    // si escludono pure i webhooks, dato che sono già protetti
+    private boolean requiresCsrfProtection(HttpServletRequest request) {
+        Set<String> safeMethods = Set.of("GET", "HEAD", "TRACE", "OPTIONS");
+        if (safeMethods.contains(request.getMethod())) {
+            return false;
+        }
+        if (request.getHeader("X-Api-Key") != null) {
+            return false;
+        }
+        return !request.getRequestURI().startsWith(request.getContextPath() + "/api/webhooks/in/");
+    }
+
     // richieste http al login
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        RequestMatcher csrfProtectionMatcher = this::requiresCsrfProtection;
+
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        // CookieCsrfTokenRepository.withHttpOnlyFalse(): il cookie XSRF-TOKEN
+                        // ha bisongo di rimanere leggibile da TS; questo meccanismo double-submit: il frontend lo
+                        // legge e lo rimanda come header X-XSRF-TOKEN, il server confronta i due.
+                        // Angular HttpClient cerca esattamente questi nomi di default.
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        .requireCsrfProtectionMatcher(csrfProtectionMatcher)
+                        // Di default Spring registra CsrfAuthenticationStrategy come
+                        // SessionAuthenticationStrategy, che ruota/cancella il cookie XSRF-TOKEN
+                        // "alla prima autenticazione di una sessione". In STATELESS pero' non
+                        // esiste un vero SecurityContextRepository che persista lo stato tra
+                        // richieste (e' un NullSecurityContextRepository) - quindi
+                        // SessionManagementFilter.containsContext(request) e' SEMPRE false, e
+                        // OGNI richiesta autenticata (es. ogni GET /me col cookie access_token)
+                        // viene trattata come "nuovo login", cancellando XSRF-TOKEN ad ogni giro
+                        // (trovato in smoke test live: il cookie spariva dopo la prima richiesta
+                        // autenticata, rompendo qualunque richiesta mutante successiva). Non
+                        // esistendo sessioni HTTP qui, non c'e' nessun rischio di session-fixation
+                        // da mitigare: no-op esplicito.
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // /error: il forward interno di Tomcat/Spring Boot per QUALSIASI
@@ -96,7 +141,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();
 
