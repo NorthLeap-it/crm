@@ -1,0 +1,66 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200 p-4">
+  <div class="w-full max-w-sm">
+    <ui-card>
+      <h1 class="text-xl font-semibold mb-1">Benvenuto in NorthLeap</h1>
+      <p class="text-sm text-base-content/60 mb-4">
+        Passo {{ step() }} di 2 — {{ step() === 1 ? 'workspace' : 'account owner' }}
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3">
+        @if (step() === 1) {
+          <div>
+            <ui-label [required]="true">Nome workspace</ui-label>
+            <input formControlName="workspaceName" class="input rounded-sm w-full" placeholder="Acme Inc." />
+            @if (form.controls.workspaceName.touched && form.controls.workspaceName.invalid) {
+              <p class="text-error text-xs mt-1">Nome richiesto</p>
+            }
+          </div>
+
+          <div>
+            <ui-label>Colore brand</ui-label>
+            <input type="color" formControlName="color" class="input rounded-sm w-full h-10 p-1" />
+          </div>
+
+          <ui-button type="button" variant="primary" (click)="next()" class="block">Continua</ui-button>
+        } @else {
+          <div>
+            <ui-label [required]="true">Nome</ui-label>
+            <input formControlName="name" class="input rounded-sm w-full" placeholder="Mario Rossi" />
+            @if (form.controls.name.touched && form.controls.name.invalid) {
+              <p class="text-error text-xs mt-1">Nome richiesto</p>
+            }
+          </div>
+
+          <div>
+            <ui-label [required]="true">Email</ui-label>
+            <input type="email" formControlName="email" class="input rounded-sm w-full" placeholder="tu@azienda.com" />
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <p class="text-error text-xs mt-1">Inserisci un'email valida</p>
+            }
+          </div>
+
+          <div>
+            <ui-label [required]="true">Password</ui-label>
+            <input type="password" formControlName="password" class="input rounded-sm w-full" placeholder="min. 8 caratteri" />
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <p class="text-error text-xs mt-1">Almeno 8 caratteri</p>
+            }
+          </div>
+
+          @if (error()) {
+            <div class="alert alert-error rounded-sm py-2 text-sm">{{ error() }}</div>
+          }
+
+          <div class="flex gap-2">
+            <ui-button type="button" variant="ghost" (click)="back()">Indietro</ui-button>
+            <ui-button type="submit" variant="primary" [loading]="submitting()">Crea workspace</ui-button>
+          </div>
+        }
+      </form>
+
+      <p class="text-xs text-base-content/60 mt-4">
+        Hai già un account? <a routerLink="/login" class="link link-primary">Accedi</a>
+      </p>
+    </ui-card>
+  </div>
+</div>

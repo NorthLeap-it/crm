@@ -1,0 +1,38 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200 p-4">
+  <div class="w-full max-w-sm">
+    <ui-card>
+      <h1 class="text-xl font-semibold mb-1">NorthLeap CRM</h1>
+      <p class="text-sm text-base-content/60 mb-4">Accedi al tuo workspace</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3">
+        <div>
+          <ui-label [required]="true">Email</ui-label>
+          <input type="email" formControlName="email" class="input rounded-sm w-full" placeholder="tu@azienda.com" />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p class="text-error text-xs mt-1">Inserisci un'email valida</p>
+          }
+        </div>
+
+        <div>
+          <ui-label [required]="true">Password</ui-label>
+          <input type="password" formControlName="password" class="input rounded-sm w-full" placeholder="••••••••" />
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <p class="text-error text-xs mt-1">Password richiesta</p>
+          }
+        </div>
+
+        @if (error()) {
+          <div class="alert alert-error rounded-sm py-2 text-sm">{{ error() }}</div>
+        }
+
+        <ui-button type="submit" variant="primary" [loading]="submitting()" class="block">
+          Accedi
+        </ui-button>
+      </form>
+
+      <p class="text-xs text-base-content/60 mt-4">
+        Prima volta? <a routerLink="/onboarding" class="link link-primary">Configura il workspace</a>
+      </p>
+    </ui-card>
+  </div>
+</div>
