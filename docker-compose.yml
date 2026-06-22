@@ -48,11 +48,9 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      NODE_ENV: production
-      PORT: 4200
-    expose:
-      - "4200"
+    # nginx serve il bundle statico sulla 80, mappata sulla 4200 dell'host
+    ports:
+      - "4200:80"
 
 volumes:
   postgres_data:
