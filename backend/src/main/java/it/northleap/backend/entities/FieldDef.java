@@ -13,7 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-// "unique"/"order" sono parole riservate in Postgres -> isUnique/sortOrder (stesso motivo di User -> tabella "users")
+/*
+* descrizione di come è una colonna del db
+*/
+
 @Entity
 @Table(name = "field_def", uniqueConstraints = @UniqueConstraint(columnNames = {"object_type_id", "key"}))
 @Getter

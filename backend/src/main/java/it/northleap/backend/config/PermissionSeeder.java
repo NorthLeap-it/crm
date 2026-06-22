@@ -17,13 +17,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-// Seed dei permessi di default per i ruoli di sistema. A differenza della prima versione (Fase 2,
-// che seminava solo le 5 risorse di sistema fisse e si fermava se la tabella non era vuota),
-// questo seeder fa upsert per-(role,resource): inserisce solo le combinazioni mancanti, senza
-// toccare quelle già presenti. Questo è necessario perché ora le risorse includono anche le key
-// degli ObjectType seminati da ObjectTypeSeeder, che possono crescere nel tempo — stessa logica
-// dello script seed.ts originale (upsert per coppia, non "salta se la tabella non è vuota").
-// Gira dopo ObjectTypeSeeder (vedi @Order) per vedere tutte le ObjectType key correnti.
+/*
+* automazione della sicurezza
+* ogni volta che viene aggiunto un nuovo object type il sistema
+* deve sapere i vari ruoli
+*/
+
+
 @Component
 @RequiredArgsConstructor
 @Order(3)
@@ -31,6 +31,7 @@ public class PermissionSeeder implements ApplicationRunner {
 
     private static final List<String> FIXED_RESOURCES = List.of("page", "chart", "workflow", "user", "apikey");
 
+    // inject
     private final RoleRepository roleRepository;
     private final ObjectTypeRepository objectTypeRepository;
     private final PermissionRepository permissionRepository;
@@ -53,6 +54,7 @@ public class PermissionSeeder implements ApplicationRunner {
         }
     }
 
+    // vari permessi, in base al ruolo assegnato
     private Permission buildPermission(Role role, String resource) {
         Permission permission = new Permission();
         permission.setRole(role);

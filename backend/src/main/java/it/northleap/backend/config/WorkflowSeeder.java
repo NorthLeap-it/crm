@@ -11,9 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
-// Porting letterale delle 12 automazioni di default in prisma/seed.ts (righe 226-311, Fase 5,
-// 05-WORKFLOW-ENGINE.md). Idempotenza per riga (findByName, skip se gia' esiste) - stesso
-// pattern dell'originale (findFirst per nome), non uno skip-se-tabella-non-vuota.
+// tutte le regole di di automazione per il crm
 @Component
 @RequiredArgsConstructor
 @Order(4)

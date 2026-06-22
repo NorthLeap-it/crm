@@ -17,7 +17,7 @@ import java.util.Map;
 @Order(1)
 public class RoleSeeder implements ApplicationRunner {
 
-    // ruoli
+    // ruoli chiave, valore
     private static final Map<String, String> SYSTEM_ROLES = Map.of(
             "owner", "Owner",
             "admin", "Admin",

@@ -15,6 +15,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    // per gestire richeiste http
+    // tramite interceptor
+    // inoltre con addArgumentsResolver semplifico
+    // la logica del controller
+
     private final RbacInterceptor rbacInterceptor;
     private final CurrentActorArgumentResolver currentActorArgumentResolver;
 

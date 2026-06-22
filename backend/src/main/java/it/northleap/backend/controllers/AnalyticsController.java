@@ -10,9 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-// Porting di AnalyticsController (analytics.module.ts). Nessun @RequirePerm: l'originale non ne
-// ha su questo controller (qualunque utente autenticato vede le analytics), coperto comunque da
-// anyRequest().authenticated() in SecurityConfig.
+// qualunque utente auth riesce a vedere le analytics
+
 @RestController
 @RequestMapping("/api/analytics")
 @RequiredArgsConstructor

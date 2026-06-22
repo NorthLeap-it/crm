@@ -15,15 +15,13 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
-// Porting della costante OBJECTS in prisma/seed.ts (19 ObjectType di default del CRM core).
-// Non porta il resto di seed.ts: niente Workflow demo (Fase 5) né mock data (solo demo, non
-// menzionati nei 7 step di 03-MOTORE-DINAMICO.md). Gira prima di PermissionSeeder (vedi @Order)
-// così quello vede già tutte le ObjectType key.
 @Component
 @RequiredArgsConstructor
 @Order(2)
 public class ObjectTypeSeeder implements ApplicationRunner {
 
+    // tabella record che contiene i vari campi
+    // grazie a questa l'utente può crearsi i campi che vuole, unico problema validare noi i dati
     private record FieldSpec(String key, String label, FieldType type, boolean required,
                               List<Map<String, Object>> options, Map<String, Object> config) {
     }
@@ -47,6 +45,8 @@ public class ObjectTypeSeeder implements ApplicationRunner {
         return new FieldSpec(key, label, FieldType.RELATION, false, null, config);
     }
 
+
+    // metodo che mappa chiave ed etichetta
     private static Map<String, Object> opt(String value, String label) {
         return Map.of("value", value, "label", label);
     }
@@ -195,6 +195,8 @@ public class ObjectTypeSeeder implements ApplicationRunner {
             ))
     );
 
+
+    // inject
     private final ObjectTypeRepository objectTypeRepository;
     private final FieldDefRepository fieldDefRepository;
     private final PageGeneratorService pageGeneratorService;
@@ -205,9 +207,12 @@ public class ObjectTypeSeeder implements ApplicationRunner {
             return;
         }
 
+        // popolamento db
         int order = 0;
         for (ObjectSpec spec : OBJECTS) {
+            // creo un nuovo record object, tipo un azienda
             ObjectType obj = new ObjectType();
+            // aggiungo i vari campi
             obj.setKey(spec.key());
             obj.setLabel(spec.label());
             obj.setPluralLabel(spec.plural());
@@ -217,6 +222,8 @@ public class ObjectTypeSeeder implements ApplicationRunner {
             obj.setSortOrder(order++);
             objectTypeRepository.save(obj);
 
+
+            // creo i record corrispondenti
             int fieldOrder = 0;
             for (FieldSpec fs : spec.fields()) {
                 FieldDef field = new FieldDef();
@@ -231,6 +238,7 @@ public class ObjectTypeSeeder implements ApplicationRunner {
                 fieldDefRepository.save(field);
             }
 
+            // creo le interfacce utente partendo da quell'oggetto
             pageGeneratorService.generate(obj.getId(), true);
         }
     }

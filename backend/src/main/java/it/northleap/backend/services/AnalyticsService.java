@@ -38,6 +38,7 @@ public class AnalyticsService {
     private record MonthBucket(String label, Instant start, Instant end) {
     }
 
+    // metodo che recupera gli ultimi n mesi
     List<MonthBucket> lastMonths(int n, LocalDate referenceDate) {
         List<MonthBucket> out = new java.util.ArrayList<>();
         YearMonth current = YearMonth.from(referenceDate);
@@ -91,6 +92,7 @@ public class AnalyticsService {
     }
 
     List<RevenuePoint> revenue(LocalDate referenceDate) {
+        // legge tutti i record fatture
         List<Record> invoices = records("invoice");
         return lastMonths(6, referenceDate).stream()
                 .map(m -> {
@@ -108,6 +110,7 @@ public class AnalyticsService {
     }
 
     List<EfficiencyPoint> efficiency(LocalDate referenceDate) {
+        // analizza sia task che ticket
         List<Record> all = new java.util.ArrayList<>(records("task"));
         all.addAll(records("ticket"));
         return lastMonths(6, referenceDate).stream()
@@ -123,6 +126,7 @@ public class AnalyticsService {
     }
 
     public List<PipelinePoint> pipeline() {
+        // opportyunity attive
         List<Record> opps = records("opportunity");
         Map<String, Long> byStatus = new LinkedHashMap<>();
         for (Record r : opps) {
@@ -132,12 +136,20 @@ public class AnalyticsService {
         return byStatus.entrySet().stream().map(e -> new PipelinePoint(e.getKey(), e.getValue())).toList();
     }
 
+    /**
+     * metodo che ritorna i task presenti negli ultimi 6 mesi
+     * con i vari status (completato, in corso)
+     * @return
+     */
     public List<ActivityPoint> activity() {
         return activity(LocalDate.now());
     }
 
+    // metodo helper
     List<ActivityPoint> activity(LocalDate referenceDate) {
+        // record di task
         List<Record> tasks = records("task");
+        // statistiche degli ultimi 6 mesi
         return lastMonths(6, referenceDate).stream()
                 .map(m -> {
                     List<Record> inMonth = tasks.stream().filter(r -> inRange(r, m)).toList();
