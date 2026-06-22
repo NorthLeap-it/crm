@@ -78,6 +78,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // /error: il forward interno di Tomcat/Spring Boot per QUALSIASI
+                        // risposta generata via HttpServletResponse.sendError() (compreso il
+                        // default handling di Spring per MethodArgumentNotValidException sui
+                        // @Valid falliti, o qualunque eccezione non gestita da un nostro
+                        // @ExceptionHandler) passa da qui come una richiesta separata. Senza
+                        // questo permitAll, anyRequest().authenticated() la nega con un 403
+                        // vuoto che maschera il vero status (400/500/altro) - bug trovato in
+                        // smoke test live, non specifico di nessun endpoint in particolare.
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/status").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/onboarding").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
