@@ -2,7 +2,6 @@ import { Component, OnDestroy, OnInit, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   LucideAngularModule,
-  Box,
   Home,
   Search,
   Settings,
@@ -12,6 +11,8 @@ import {
   Bell
 } from 'lucide-angular';
 
+import { resolveObjectIcon } from '../core/object-icons';
+import { ObjectType } from '../models/object-type';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
 import { ObjectTypeService } from '../services/object-type.service';
@@ -48,7 +49,11 @@ export class AppLayout implements OnInit, OnDestroy {
   protected readonly SunIcon = Sun;
   protected readonly MoonIcon = Moon;
   protected readonly BellIcon = Bell;
-  protected readonly BoxIcon = Box;
+
+  // icona per ObjectType, risolta dal campo `icon` del backend (vedi core/object-icons.ts)
+  protected iconFor(obj: ObjectType) {
+    return resolveObjectIcon(obj.icon);
+  }
 
   ngOnInit(): void {
     this.objectTypeService.load().subscribe();

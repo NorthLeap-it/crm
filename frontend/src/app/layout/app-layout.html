@@ -91,7 +91,7 @@
           @if (obj.enabled) {
             <li>
               <a [routerLink]="['/o', obj.key]" routerLinkActive="active" class="rounded-sm">
-                <lucide-icon [img]="BoxIcon" [size]="16" [style.color]="obj.color" />
+                <lucide-icon [img]="iconFor(obj)" [size]="16" [style.color]="obj.color" />
                 {{ obj.pluralLabel }}
               </a>
             </li>
