@@ -1,0 +1,17 @@
+@if (isAuthenticated()) {
+  <div class="drawer lg:drawer-open min-h-screen">
+    <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+
+    <div class="drawer-content flex flex-col">
+      <app-topbar />
+      <main class="flex-1 p-4 lg:p-6">
+        <router-outlet />
+      </main>
+      <app-bottom-nav />
+    </div>
+
+    <app-sidebar />
+  </div>
+} @else {
+  <router-outlet />
+}

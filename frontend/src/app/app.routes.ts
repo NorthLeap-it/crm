@@ -2,8 +2,9 @@ import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth.guard';
 
-// Routing piatto, equivalente all'originale React (react-router-dom). Le rotte di prodotto
-// sono lazy via loadComponent. Tutto sotto AppLayout e' protetto da authGuard.
+// Routing piatto. La shell (sidebar/topbar) vive nel root app.html in base allo stato di auth,
+// quindi qui non c'e' un componente layout: le rotte protette sono figlie di un parent pathless
+// con l'authGuard e rendono nel <router-outlet> del root.
 export const routes: Routes = [
   {
     path: 'login',
@@ -15,7 +16,6 @@ export const routes: Routes = [
   },
   {
     path: '',
-    loadComponent: () => import('./layout/app-layout').then((m) => m.AppLayout),
     canActivate: [authGuard],
     children: [
       {
