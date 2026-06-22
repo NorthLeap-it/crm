@@ -568,3 +568,93 @@ phase only adds the read side.
   filter-combination: both/resource-only/resourceId-only/neither) instead of a single dynamic
   query — simpler than a query-builder for only 4 fixed combinations, same reasoning already used
   elsewhere in this codebase when the variant count is small.
+
+### Hardening round (post-Phase-6 — implemented)
+
+After all 6 phases + the two extra modules reached functional parity, a live smoke test plus a
+full completeness/security audit surfaced a batch of real bugs and gaps, not part of any `md/`
+phase doc. All items below are fixed and covered by unit tests; the first one was the most
+impactful, found only through live HTTP testing, not static review.
+
+- **`/error` blocked by Spring Security — masked every default-handled exception as a blank
+  403** (the most significant finding). `HttpServletResponse.sendError()` — used internally by
+  Spring's default `MethodArgumentNotValidException` handling (i.e. any failed `@Valid` on a
+  request body with no custom handler) and by Tomcat for any genuinely uncaught exception —
+  triggers an **internal forward to `/error`**, which re-enters the full Spring Security filter
+  chain as a new, unauthenticated request. Without `/error` in the `permitAll()` list,
+  `anyRequest().authenticated()` denied it with a blank 403, hiding the real intended status code
+  (400/500/whatever) behind a generic, misleading 403 — for any exception not already handled by
+  a custom `@RestControllerAdvice` returning a `ResponseEntity` directly (those bypass
+  `sendError()` entirely, which is why `NotFoundException`/`BadRequestException`/etc. always
+  worked correctly while `@Valid` failures and the `/me` NPE below did not). Fixed by adding
+  `.requestMatchers("/error").permitAll()` in `SecurityConfig`, plus a new
+  `exceptions/GlobalExceptionAdvice.java` (`@RestControllerAdvice`, `@Order(LOWEST_PRECEDENCE)`)
+  that gives `MethodArgumentNotValidException` a proper 400 with per-field messages, and a
+  catch-all `Exception.class` → 500 "Errore interno" (logged via SLF4J) as a last-resort safety
+  net instead of silently falling through to Spring Boot's default behavior.
+  **Second-order bug this introduced**: `ExceptionHandlerExceptionResolver` resolves
+  `@ControllerAdvice` beans by **bean order, stopping at the first bean with any applicable
+  handler** — it does not scan every bean for the most specific match. Beans with no explicit
+  `@Order` default to `Ordered.LOWEST_PRECEDENCE`, same as the new catch-all, so ties were broken
+  by incidental bean-scan order — which let `GlobalExceptionAdvice`'s `Exception.class` handler
+  shadow `BadRequestException` (`/me` with an `X-Api-Key` started returning 500 instead of 400).
+  Fixed by adding `@Order(0)` to the three pre-existing advice classes (`AuthException`,
+  `RecordExceptionAdvice`, `RbacExceptionAdvice`) to guarantee they're evaluated before the
+  catch-all.
+- **Onboarding accepted any password length** — `OnboardingRequest.password` had no `@Size`
+  constraint, unlike `AcceptInviteDto`'s. Added the same `@Size(min = 8, ...)`.
+- **`ownerId` was client-controlled even under `OWN` RBAC scope** — `RecordsService.create()`/
+  `update()` honored any client-supplied `ownerId`, letting a user with only `OWN`-scoped write
+  permission create or reassign records they don't own, defeating the scope's purpose. Fixed via
+  a private `resolveOwnerId(...)` that forces `ownerId = actor.id()` whenever `scope ==
+  PermScope.OWN && actor.type() == ActorType.USER`, ignoring any client value in that case; `ALL`/
+  `TEAM` scope behavior (client value wins, else default to actor) is unchanged.
+- **`/api/auth/me` threw an NPE when called with `X-Api-Key`** — `AuthService.me(UserPrincipal)`
+  assumed a non-null principal, but the API-key auth path (`JwtAuthenticationFilter`) sets a
+  minimal `Authentication` whose principal is a `String` (the API key id), not a `UserPrincipal`
+  — Spring's `@AuthenticationPrincipal` resolver silently returns `null` on that type mismatch
+  rather than throwing. Added an explicit null-guard at the top of `me()` throwing
+  `BadRequestException` with a clear message ("this endpoint requires a JWT-authenticated user,
+  not an API key") instead of an unhandled NPE.
+- **`GET /api/webhooks` leaked `Webhook.secret`** — the HMAC signing secret was serialized
+  in plain JSON on every list call. Added `dtos/WebhookSummary.java` (everything except
+  `secret`) and switched `WebhookService.list()`/`WebhookController.list()` to return it;
+  `create()` still returns the full entity once, by design (the only time the secret is needed).
+- **No CORS policy** — the app had no `CorsConfigurationSource` at all, relying on whatever the
+  browser/Spring default did. Added an explicit allowlist
+  (`app.cors.allowed-origins`, env `CORS_ALLOWED_ORIGINS`, defaults to the Angular dev server)
+  via a `CorsConfigurationSource` bean wired first in the `SecurityConfig` filter chain.
+  Deliberately never a wildcard origin: requests carry credentials (`Authorization`/`X-Api-Key`),
+  and CORS forbids combining a wildcard origin with `allowCredentials(true)`.
+- **No rate limiting anywhere** — `/api/auth/login`, `/api/auth/refresh`, and
+  `/api/users/accept-invite` had no brute-force/abuse protection. Added `security/RateLimiter.java`
+  (fixed-window, in-memory, per `servletPath:remoteAddr` key, `app.rate-limit.max-attempts`/
+  `app.rate-limit.window-seconds` configurable, defaults 10/60s) and `security/RateLimitFilter.java`
+  (`OncePerRequestFilter`, only applies to POST on the three listed paths, registered before
+  `JwtAuthenticationFilter`, returns a literal 429 with a JSON body — `HttpServletResponse` has no
+  named constant for 429). **Known limitation, documented not fixed**: in-memory only, so this
+  only protects a single instance; a multi-instance deployment needs a shared store (Redis etc.)
+  instead.
+- **`SafeUrlValidator`'s SSRF guard had no DNS-rebinding protection** — the existing literal-IPv4
+  regex check only inspected the URL's literal hostname/IP text, so a public hostname that
+  resolves (or rebinds) to a private/loopback/link-local address bypassed it entirely (a
+  limitation explicitly flagged as inherited-but-not-fixed when `send_webhook` was first built in
+  Phase 5). Now resolves the hostname via `InetAddress.getAllByName(...)` and checks **every**
+  resolved address with `isAnyLocalAddress()/isLoopbackAddress()/isLinkLocalAddress()/
+  isSiteLocalAddress()`, in addition to the pre-existing literal check. Same testability-seam
+  pattern used elsewhere in the codebase (`AnalyticsService.referenceDate`,
+  `WorkflowEngine.runWorkflow`): public `isSafe(url)` delegates to a package-private `isSafe(url,
+  DnsResolver resolver)`, so tests inject a fake resolver instead of doing real DNS lookups (note:
+  `InetAddress.getAllByName(...)` does *not* perform network I/O when given a literal IP string,
+  only for actual hostnames — existing literal-IP tests are unaffected and still use the 1-arg
+  facade).
+- **File upload accepted any extension** — `FileStorageService.store()` had no extension
+  allow/deny list, so executable/script files (`.exe`, `.sh`, `.bat`, `.jsp`, etc.) could be
+  uploaded and later served back via `GET /api/files/{id}`. Added a `BLOCKED_EXTENSIONS` set (24
+  dangerous extensions) checked up front, throwing `BadRequestException` on a match.
+
+None of these were caught by the project's pure-Mockito unit test suite before this round — the
+`/error` bug and its second-order advice-ordering bug in particular are cross-cutting Spring MVC/
+Security framework behavior that's invisible without a real Spring context and a live HTTP
+request, reinforcing why live smoke testing (not just `./gradlew test`) is part of this project's
+verification routine before considering a phase done.
