@@ -1,6 +1,7 @@
 package it.northleap.backend.config;
 
 import it.northleap.backend.security.JwtAuthenticationFilter;
+import it.northleap.backend.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +31,7 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     // origini ammesse per il frontend (Angular dev server di default) - mai wildcard "*" qui:
     // le richieste includono credenziali (header Authorization/X-Api-Key), e CORS vieta
@@ -84,7 +86,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/webhooks/in/*").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
 
