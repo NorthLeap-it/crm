@@ -23,4 +23,12 @@ export class ObjectTypeService {
   getByKey(key: string) {
     return this.http.get<ObjectType>(`${API_BASE_URL}/api/objects/${key}`);
   }
+
+  create(dto: { key: string; label: string; pluralLabel: string; icon?: string; color?: string }) {
+    return this.http.post<ObjectType>(`${API_BASE_URL}/api/objects`, dto);
+  }
+
+  remove(key: string) {
+    return this.http.delete<void>(`${API_BASE_URL}/api/objects/${key}`);
+  }
 }
