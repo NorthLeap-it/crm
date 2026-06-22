@@ -70,7 +70,7 @@ public class RecordsService {
 
     @Transactional
     public Record create(Actor actor, String key, UpsertRecordDto dto, String ip) {
-        authorize(actor, key, PermAction.WRITE);
+        PermScope scope = authorize(actor, key, PermAction.WRITE);
         ObjectType obj = objectOrThrow(key);
         Map<String, Object> data = recordValidator.validate(obj.getFields(), dto.getData());
 
@@ -78,7 +78,7 @@ public class RecordsService {
         record.setObjectType(obj);
         record.setTitle(dto.getTitle() != null ? dto.getTitle() : recordValidator.deriveTitle(obj.getFields(), data));
         record.setStatus(dto.getStatus() != null ? dto.getStatus() : recordValidator.deriveStatus(obj.getFields(), data));
-        record.setOwnerId(dto.getOwnerId() != null ? dto.getOwnerId() : (actor.type() == ActorType.USER ? actor.id() : null));
+        record.setOwnerId(resolveOwnerId(actor, scope, dto.getOwnerId(), null));
         record.setData(data);
         recordRepository.save(record);
 
@@ -108,7 +108,7 @@ public class RecordsService {
         String beforeStatus = existing.getStatus();
         existing.setTitle(dto.getTitle() != null ? dto.getTitle() : recordValidator.deriveTitle(obj.getFields(), data));
         existing.setStatus(dto.getStatus() != null ? dto.getStatus() : recordValidator.deriveStatus(obj.getFields(), data));
-        existing.setOwnerId(dto.getOwnerId() != null ? dto.getOwnerId() : existing.getOwnerId());
+        existing.setOwnerId(resolveOwnerId(actor, scope, dto.getOwnerId(), existing.getOwnerId()));
         existing.setData(data);
         recordRepository.save(existing);
 
@@ -179,6 +179,26 @@ public class RecordsService {
                 .filter(r -> cache.computeIfAbsent(r.getObjectType().getId(),
                         oid -> rbacService.resolve(actor.roleIds(), r.getObjectType().getKey(), PermAction.READ).allowed()))
                 .toList();
+    }
+
+    // L'originale (records.service.ts) usa sempre `dto.ownerId ?? actor.id` a prescindere dallo
+    // scope: un attore con permesso WRITE solo scope OWN poteva comunque intestare un record
+    // (in create) o riassegnarlo (in update) a un ownerId arbitrario passato nel body, scavalcando
+    // il senso stesso dello scope OWN. Qui chiudiamo deliberatamente questo gap: sotto scope OWN
+    // l'ownerId è sempre forzato all'attore stesso, qualunque cosa il client mandi. Per scope
+    // ALL/TEAM il comportamento resta quello originale (un admin/manager può assegnare/riassegnare
+    // la proprietà di un record ad altri, es. assegnare un lead a un agente specifico).
+    private UUID resolveOwnerId(Actor actor, PermScope scope, UUID requestedOwnerId, UUID currentOwnerId) {
+        if (scope == PermScope.OWN && actor.type() == ActorType.USER) {
+            return actor.id();
+        }
+        if (requestedOwnerId != null) {
+            return requestedOwnerId;
+        }
+        if (currentOwnerId != null) {
+            return currentOwnerId;
+        }
+        return actor.type() == ActorType.USER ? actor.id() : null;
     }
 
     private PermScope authorize(Actor actor, String key, PermAction action) {
