@@ -1,0 +1,43 @@
+<div>
+  <h1 class="text-2xl font-semibold mb-4">Dashboard</h1>
+
+  <!-- KPI -->
+  @if (loadingKpis()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else {
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      @for (kpi of kpis(); track kpi.object.id) {
+        <a [routerLink]="['/o', kpi.object.key]" class="block">
+          <ui-card>
+            <div class="text-3xl font-bold" [style.color]="kpi.object.color">{{ kpi.count }}</div>
+            <div class="text-sm text-base-content/60">{{ kpi.object.pluralLabel }}</div>
+          </ui-card>
+        </a>
+      }
+    </div>
+  }
+
+  <!-- grafici -->
+  @if (loadingCharts()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <ui-card>
+        <h2 class="font-semibold mb-2">Fatturato vs Costi</h2>
+        @if (revenueChart(); as cfg) { <app-chart [config]="cfg" /> }
+      </ui-card>
+      <ui-card>
+        <h2 class="font-semibold mb-2">Pipeline</h2>
+        @if (pipelineChart(); as cfg) { <app-chart [config]="cfg" /> }
+      </ui-card>
+      <ui-card>
+        <h2 class="font-semibold mb-2">Attività</h2>
+        @if (activityChart(); as cfg) { <app-chart [config]="cfg" /> }
+      </ui-card>
+      <ui-card>
+        <h2 class="font-semibold mb-2">Efficienza</h2>
+        @if (efficiencyChart(); as cfg) { <app-chart [config]="cfg" /> }
+      </ui-card>
+    </div>
+  }
+</div>
