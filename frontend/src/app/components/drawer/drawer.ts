@@ -1,0 +1,29 @@
+import { Component, input, output } from '@angular/core';
+
+// Pannello laterale slide-over (create/view record), equivalente al Drawer.tsx dell'originale.
+// Resize lo aggiungiamo dopo se serve - per ora larghezza fissa responsive.
+@Component({
+  selector: 'app-drawer',
+  standalone: true,
+  template: `
+    @if (open()) {
+      <div class="fixed inset-0 z-40 flex justify-end">
+        <div class="absolute inset-0 bg-black/40" (click)="close.emit()"></div>
+        <aside class="relative bg-base-100 w-full max-w-md h-full shadow-xl border-l border-base-300 flex flex-col">
+          <header class="flex items-center justify-between p-4 border-b border-base-300">
+            <h2 class="font-semibold">{{ title() }}</h2>
+            <button class="btn btn-ghost btn-sm btn-square rounded-sm" (click)="close.emit()" aria-label="Chiudi">✕</button>
+          </header>
+          <div class="flex-1 overflow-y-auto p-4">
+            <ng-content />
+          </div>
+        </aside>
+      </div>
+    }
+  `
+})
+export class Drawer {
+  readonly open = input(false);
+  readonly title = input('');
+  readonly close = output<void>();
+}

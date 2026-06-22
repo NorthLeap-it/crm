@@ -1,0 +1,67 @@
+<form [formGroup]="form()" (ngSubmit)="submit()" class="space-y-5">
+  @for (section of sections(); track section.name) {
+    <fieldset class="space-y-3">
+      @if (sections().length > 1 || section.name !== 'Generale') {
+        <legend class="text-sm font-semibold text-base-content/50 uppercase tracking-wide">{{ section.name }}</legend>
+      }
+
+      @for (rf of section.fields; track rf.def.id) {
+        <div>
+          <ui-label [required]="rf.def.required">{{ rf.def.label }}</ui-label>
+
+          @switch (rf.kind) {
+            @case ('textarea') {
+              <textarea
+                [formControlName]="rf.def.key"
+                class="textarea rounded-sm w-full"
+                [placeholder]="rf.def.placeholder ?? ''"
+                rows="3"
+              ></textarea>
+            }
+            @case ('boolean') {
+              <input type="checkbox" [formControlName]="rf.def.key" class="toggle toggle-primary" />
+            }
+            @case ('select') {
+              <select [formControlName]="rf.def.key" class="select rounded-sm w-full">
+                <option value="">—</option>
+                @for (opt of optionsOf(rf.def); track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            }
+            @case ('multiselect') {
+              <select [formControlName]="rf.def.key" class="select rounded-sm w-full" multiple>
+                @for (opt of optionsOf(rf.def); track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            }
+            @default {
+              <input
+                [type]="rf.inputType"
+                [formControlName]="rf.def.key"
+                class="input rounded-sm w-full"
+                [placeholder]="rf.def.placeholder ?? ''"
+                [min]="rf.def.min"
+                [max]="rf.def.max"
+                [step]="rf.def.step"
+              />
+            }
+          }
+
+          @if (rf.def.description) {
+            <p class="text-xs text-base-content/50 mt-1">{{ rf.def.description }}</p>
+          }
+          @if (form().get(rf.def.key)?.touched && form().get(rf.def.key)?.invalid) {
+            <p class="text-error text-xs mt-1">Valore non valido</p>
+          }
+        </div>
+      }
+    </fieldset>
+  }
+
+  <div class="flex gap-2 justify-end pt-2">
+    <ui-button type="button" variant="ghost" (click)="cancel.emit()">Annulla</ui-button>
+    <ui-button type="submit" variant="primary" [loading]="submitting()">Salva</ui-button>
+  </div>
+</form>
