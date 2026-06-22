@@ -58,7 +58,7 @@
       <div class="p-4 text-sm font-semibold text-base-content/50 uppercase tracking-wide">Oggetti</div>
       <ul class="menu px-2 gap-0.5">
         @for (obj of objects(); track obj.id) {
-          @if (obj.isEnabled) {
+          @if (obj.enabled) {
             <li>
               <a [routerLink]="['/o', obj.key]" routerLinkActive="active" class="rounded-sm">
                 <lucide-icon [img]="BoxIcon" [size]="16" [style.color]="obj.color" />

@@ -19,4 +19,8 @@ export class ObjectTypeService {
       .get<ObjectType[]>(`${API_BASE_URL}/api/objects`)
       .pipe(tap((objects) => this._objects.set(objects)));
   }
+
+  getByKey(key: string) {
+    return this.http.get<ObjectType>(`${API_BASE_URL}/api/objects/${key}`);
+  }
 }
