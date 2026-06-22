@@ -6,6 +6,18 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // applicato prima del bootstrap di Angular per evitare un flash del tema sbagliato -
+    // ThemeService (src/app/services/theme.service.ts) prende il controllo dopo, stessa chiave
+    // localStorage
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var theme = (stored === 'light' || stored === 'dark')
+        ? stored
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>
