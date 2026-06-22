@@ -1,0 +1,35 @@
+<div>
+  <p class="text-sm text-base-content/60 mb-3">
+    Automazioni attive. L'editor visuale a grafo arriverà più avanti — qui per ora si può
+    attivare/disattivare, eseguire manualmente ed eliminare.
+  </p>
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else {
+    <table class="table table-sm border border-base-300 rounded-sm">
+      <thead><tr><th>Nome</th><th>Trigger</th><th>Attivo</th><th></th></tr></thead>
+      <tbody>
+        @for (w of workflows(); track w.id) {
+          <tr>
+            <td>
+              <div class="font-medium">{{ w.name }}</div>
+              @if (w.description) { <div class="text-xs text-base-content/50">{{ w.description }}</div> }
+            </td>
+            <td><code class="text-xs">{{ triggerType(w) }}</code></td>
+            <td>
+              <input type="checkbox" class="toggle toggle-primary toggle-sm" [checked]="w.active" (change)="toggle(w)" />
+            </td>
+            <td class="text-right whitespace-nowrap">
+              @if (ranId() === w.id) {
+                <span class="text-success text-xs mr-2">in coda ✓</span>
+              }
+              <button class="btn btn-ghost btn-xs rounded-sm" (click)="run(w)">Esegui</button>
+              <button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="remove(w)">Elimina</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

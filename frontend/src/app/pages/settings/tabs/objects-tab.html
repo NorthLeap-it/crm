@@ -1,0 +1,67 @@
+<div>
+  <div class="flex justify-between items-center mb-3">
+    <p class="text-sm text-base-content/60">Tipi di oggetto e relativi campi.</p>
+    <ui-button variant="primary" (click)="creating.set(!creating())">{{ creating() ? 'Chiudi' : '+ Nuovo oggetto' }}</ui-button>
+  </div>
+
+  @if (creating()) {
+    <form [formGroup]="form" (ngSubmit)="create()" class="border border-base-300 rounded-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm mb-1">Chiave <span class="text-error">*</span></label>
+        <input formControlName="key" class="input rounded-sm w-full" placeholder="es. project" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Etichetta <span class="text-error">*</span></label>
+        <input formControlName="label" class="input rounded-sm w-full" placeholder="Progetto" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Etichetta plurale <span class="text-error">*</span></label>
+        <input formControlName="pluralLabel" class="input rounded-sm w-full" placeholder="Progetti" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Colore</label>
+        <input type="color" formControlName="color" class="input rounded-sm w-full h-10 p-1" />
+      </div>
+      @if (error()) {
+        <div class="sm:col-span-2 alert alert-error rounded-sm py-2 text-sm">{{ error() }}</div>
+      }
+      <div class="sm:col-span-2 flex justify-end">
+        <ui-button type="submit" variant="primary" [loading]="submitting()">Crea</ui-button>
+      </div>
+    </form>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else {
+    <div class="border border-base-300 rounded-sm divide-y divide-base-300">
+      @for (obj of objects(); track obj.id) {
+        <div>
+          <div class="flex items-center justify-between p-3">
+            <button class="flex items-center gap-2 text-left" (click)="toggle(obj.key)">
+              <span class="w-2 h-2 rounded-full" [style.backgroundColor]="obj.color"></span>
+              <span class="font-medium">{{ obj.pluralLabel }}</span>
+              <span class="text-xs text-base-content/40">{{ obj.fields.length }} campi · {{ obj.key }}</span>
+              @if (obj.system) { <span class="badge badge-ghost badge-xs rounded-sm">sistema</span> }
+            </button>
+            @if (!obj.system) {
+              <button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="remove(obj)">Elimina</button>
+            }
+          </div>
+          @if (expanded() === obj.key) {
+            <div class="px-3 pb-3">
+              <table class="table table-xs">
+                <thead><tr><th>Campo</th><th>Chiave</th><th>Tipo</th><th>Obbl.</th></tr></thead>
+                <tbody>
+                  @for (f of obj.fields; track f.id) {
+                    <tr><td>{{ f.label }}</td><td><code>{{ f.key }}</code></td><td>{{ f.type }}</td><td>{{ f.required ? '✓' : '' }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

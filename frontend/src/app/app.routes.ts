@@ -36,8 +36,7 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
-        loadComponent: () => import('./pages/placeholder/placeholder').then((m) => m.Placeholder),
-        data: { title: 'Impostazioni' }
+        loadComponent: () => import('./pages/settings/settings').then((m) => m.Settings)
       }
     ]
   },

@@ -1,0 +1,43 @@
+<div>
+  <form [formGroup]="form" (ngSubmit)="create()" class="border border-base-300 rounded-sm p-4 mb-4 flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-48">
+      <label class="block text-sm mb-1">Nome <span class="text-error">*</span></label>
+      <input formControlName="name" class="input rounded-sm w-full" placeholder="es. Integrazione Zapier" />
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Ruolo (opzionale)</label>
+      <select formControlName="roleKey" class="select rounded-sm">
+        <option value="">—</option>
+        @for (r of roleKeys; track r) { <option [value]="r">{{ r }}</option> }
+      </select>
+    </div>
+    <ui-button type="submit" variant="primary" [loading]="submitting()">Crea chiave</ui-button>
+  </form>
+
+  @if (createdKey(); as key) {
+    <div class="alert alert-warning rounded-sm py-2 text-sm mb-4 flex-col items-start">
+      <p class="font-medium">Copia la chiave ora: non sarà più visibile.</p>
+      <code class="break-all">{{ key }}</code>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else if (keys().length === 0) {
+    <p class="text-center py-8 text-base-content/50">Nessuna chiave API.</p>
+  } @else {
+    <table class="table table-sm border border-base-300 rounded-sm">
+      <thead><tr><th>Nome</th><th>Prefisso</th><th>Ultimo uso</th><th></th></tr></thead>
+      <tbody>
+        @for (k of keys(); track k.id) {
+          <tr>
+            <td>{{ k.name }}</td>
+            <td><code>{{ k.prefix }}…</code></td>
+            <td>{{ k.lastUsedAt ? (k.lastUsedAt | date:'short') : 'mai' }}</td>
+            <td><button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="revoke(k)">Revoca</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

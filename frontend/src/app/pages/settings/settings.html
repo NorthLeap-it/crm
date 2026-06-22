@@ -1,0 +1,17 @@
+<div>
+  <h1 class="text-2xl font-semibold mb-4">Impostazioni</h1>
+
+  <div role="tablist" class="tabs tabs-bordered mb-4">
+    @for (t of tabs; track t.id) {
+      <button role="tab" class="tab" [class.tab-active]="tab() === t.id" (click)="tab.set(t.id)">{{ t.label }}</button>
+    }
+  </div>
+
+  @switch (tab()) {
+    @case ('objects') { <app-objects-tab /> }
+    @case ('users') { <app-users-tab /> }
+    @case ('apikeys') { <app-apikeys-tab /> }
+    @case ('workflows') { <app-workflows-tab /> }
+    @case ('roles') { <app-roles-tab /> }
+  }
+</div>

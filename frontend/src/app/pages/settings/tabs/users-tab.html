@@ -1,0 +1,53 @@
+<div>
+  <form [formGroup]="form" (ngSubmit)="invite()" class="border border-base-300 rounded-sm p-4 mb-4 flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-48">
+      <label class="block text-sm mb-1">Email <span class="text-error">*</span></label>
+      <input type="email" formControlName="email" class="input rounded-sm w-full" placeholder="nuovo@azienda.com" />
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Ruolo</label>
+      <select formControlName="roleKey" class="select rounded-sm">
+        @for (r of roleKeys; track r) { <option [value]="r">{{ r }}</option> }
+      </select>
+    </div>
+    <ui-button type="submit" variant="primary" [loading]="submitting()">Invita</ui-button>
+  </form>
+
+  @if (error()) {
+    <div class="alert alert-error rounded-sm py-2 text-sm mb-4">{{ error() }}</div>
+  }
+  @if (inviteToken(); as token) {
+    <div class="alert alert-info rounded-sm py-2 text-sm mb-4 flex-col items-start">
+      <p class="font-medium">Invito creato. Token (mostrato una sola volta):</p>
+      <code class="break-all">{{ token }}</code>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else {
+    <table class="table table-sm border border-base-300 rounded-sm">
+      <thead><tr><th>Nome</th><th>Email</th><th>Ruoli</th><th>Stato</th><th></th></tr></thead>
+      <tbody>
+        @for (u of users(); track u.id) {
+          <tr>
+            <td>{{ u.name }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              @for (r of u.roles; track r) { <span class="badge badge-ghost badge-sm rounded-sm mr-1">{{ r }}</span> }
+            </td>
+            <td>
+              @if (u.isActive) { <span class="badge badge-success badge-sm rounded-sm">attivo</span> }
+              @else { <span class="badge badge-error badge-sm rounded-sm">disattivo</span> }
+            </td>
+            <td>
+              @if (u.isActive) {
+                <button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="deactivate(u)">Disattiva</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
