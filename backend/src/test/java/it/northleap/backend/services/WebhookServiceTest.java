@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -103,5 +104,19 @@ class WebhookServiceTest {
         when(webhookRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.receive(id, "anything", Map.of()));
+    }
+
+    @Test
+    void listDoesNotExposeTheSecret() {
+        Webhook hook = inboundWebhook("topsecret");
+        when(webhookRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(hook));
+
+        var result = service.list();
+
+        assertEquals(1, result.size());
+        assertEquals(hook.getId(), result.get(0).id());
+        // WebhookSummary non ha proprio un campo secret - se questo compila e' gia' una garanzia,
+        // ma verifichiamo anche che gli altri campi siano popolati correttamente
+        assertEquals(hook.isActive(), result.get(0).active());
     }
 }

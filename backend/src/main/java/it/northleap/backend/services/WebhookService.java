@@ -1,6 +1,7 @@
 package it.northleap.backend.services;
 
 import it.northleap.backend.dtos.CreateWebhookDto;
+import it.northleap.backend.dtos.WebhookSummary;
 import it.northleap.backend.entities.Webhook;
 import it.northleap.backend.entities.WebhookDirection;
 import it.northleap.backend.events.WebhookReceivedEvent;
@@ -32,8 +33,14 @@ public class WebhookService {
     private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper;
 
-    public List<Webhook> list() {
-        return webhookRepository.findAllByOrderByCreatedAtDesc();
+    // niente secret in lista (usato per HMAC, deve restare conoscibile solo a chi l'ha
+    // appena creato il webhook, vedi WebhookSummary) - l'originale lo espone anche qui, deviazione
+    // di hardening deliberata
+    public List<WebhookSummary> list() {
+        return webhookRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(w -> new WebhookSummary(w.getId(), w.getDirection(), w.getName(), w.getUrl(),
+                        w.getEvents(), w.isActive(), w.getCreatedAt()))
+                .toList();
     }
 
     @Transactional

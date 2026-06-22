@@ -1,6 +1,7 @@
 package it.northleap.backend.controllers;
 
 import it.northleap.backend.dtos.CreateWebhookDto;
+import it.northleap.backend.dtos.WebhookSummary;
 import it.northleap.backend.entities.Webhook;
 import it.northleap.backend.security.PermAction;
 import it.northleap.backend.security.RequirePerm;
@@ -28,7 +29,7 @@ public class WebhookController {
 
     @GetMapping
     @RequirePerm(resource = "workflow", action = PermAction.READ)
-    public ResponseEntity<List<Webhook>> list() {
+    public ResponseEntity<List<WebhookSummary>> list() {
         return ResponseEntity.ok(webhookService.list());
     }
 
