@@ -1,0 +1,60 @@
+@if (loading()) {
+  <div class="flex justify-center py-12"><ui-spinner /></div>
+} @else if (record(); as rec) {
+  <div>
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <a [routerLink]="['/o', objectKey]" class="text-sm link link-hover text-base-content/50">← {{ object()?.pluralLabel ?? objectKey }}</a>
+        <h1 class="text-2xl font-semibold">{{ rec.title || '(senza titolo)' }}</h1>
+        @if (rec.status) {
+          <span class="badge badge-neutral rounded-sm mt-1">{{ rec.status }}</span>
+        }
+      </div>
+      <div class="flex gap-2">
+        <ui-button variant="ghost" (click)="editOpen.set(true)">Modifica</ui-button>
+        <ui-button variant="danger" (click)="remove()">Elimina</ui-button>
+      </div>
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 border border-base-300 rounded-sm p-4">
+      @for (field of visibleFields(); track field.id) {
+        <div>
+          <dt class="text-xs uppercase tracking-wide text-base-content/50">{{ field.label }}</dt>
+          <dd class="text-sm">{{ displayValue(field) }}</dd>
+        </div>
+      }
+    </dl>
+
+    @if (outgoing().length > 0 || incoming().length > 0) {
+      <div class="mt-6">
+        <h2 class="font-semibold mb-2">Collegamenti</h2>
+        <ul class="space-y-1">
+          @for (link of outgoing(); track link.id) {
+            <li class="text-sm">
+              <span class="text-base-content/50">{{ link.relationKey }} →</span> {{ link.target.title }}
+            </li>
+          }
+          @for (link of incoming(); track link.id) {
+            <li class="text-sm">
+              <span class="text-base-content/50">← {{ link.relationKey }}</span> {{ link.source.title }}
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+
+  <app-drawer [open]="editOpen()" [title]="'Modifica ' + (object()?.label ?? 'record')" (close)="editOpen.set(false)">
+    @if (editOpen() && object()) {
+      <app-dynamic-form
+        [fields]="object()!.fields"
+        [initialData]="rec.data"
+        [submitting]="submitting()"
+        (save)="saveEdit($event)"
+        (cancel)="editOpen.set(false)"
+      />
+    }
+  </app-drawer>
+} @else {
+  <div class="text-center py-12 text-base-content/50">Record non trovato.</div>
+}

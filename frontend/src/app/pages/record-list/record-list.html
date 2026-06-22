@@ -1,0 +1,47 @@
+<div>
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-2xl font-semibold">{{ object()?.pluralLabel ?? objectKey() }}</h1>
+      <p class="text-sm text-base-content/50">{{ total() }} record</p>
+    </div>
+    <ui-button variant="primary" (click)="drawerOpen.set(true)">+ Nuovo</ui-button>
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-center py-12"><ui-spinner /></div>
+  } @else if (records().length === 0) {
+    <div class="text-center py-12 text-base-content/50">Nessun record. Creane uno con "+ Nuovo".</div>
+  } @else {
+    <div class="overflow-x-auto border border-base-300 rounded-sm">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            @for (col of columns(); track col.id) {
+              <th>{{ col.label }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (rec of records(); track rec.id) {
+            <tr class="hover cursor-pointer" (click)="openRecord(rec)">
+              @for (col of columns(); track col.id) {
+                <td>{{ cellValue(rec, col) }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<app-drawer [open]="drawerOpen()" [title]="'Nuovo ' + (object()?.label ?? 'record')" (close)="drawerOpen.set(false)">
+  @if (drawerOpen()) {
+    <app-dynamic-form
+      [fields]="formFields()"
+      [submitting]="submitting()"
+      (save)="createRecord($event)"
+      (cancel)="drawerOpen.set(false)"
+    />
+  }
+</app-drawer>

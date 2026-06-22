@@ -24,13 +24,11 @@ export const routes: Routes = [
       },
       {
         path: 'o/:objectKey',
-        loadComponent: () => import('./pages/placeholder/placeholder').then((m) => m.Placeholder),
-        data: { title: 'Lista record' }
+        loadComponent: () => import('./pages/record-list/record-list').then((m) => m.RecordList)
       },
       {
         path: 'o/:objectKey/:id',
-        loadComponent: () => import('./pages/placeholder/placeholder').then((m) => m.Placeholder),
-        data: { title: 'Dettaglio record' }
+        loadComponent: () => import('./pages/record-detail/record-detail').then((m) => m.RecordDetail)
       },
       {
         path: 'search',
