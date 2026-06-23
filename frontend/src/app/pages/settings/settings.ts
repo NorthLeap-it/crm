@@ -1,28 +1,48 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 
+import { AuthService } from '../../services/auth.service';
 import { ApiKeysTab } from './tabs/apikeys-tab';
+import { CompanyTab } from './tabs/company-tab';
 import { ObjectsTab } from './tabs/objects-tab';
 import { RolesTab } from './tabs/roles-tab';
 import { UsersTab } from './tabs/users-tab';
 import { WorkflowsTab } from './tabs/workflows-tab';
 
-type Tab = 'objects' | 'users' | 'apikeys' | 'workflows' | 'roles';
+type Tab = 'objects' | 'users' | 'apikeys' | 'workflows' | 'roles' | 'company';
+
+// ruoli che possono gestire l'organizzazione (anagrafica azienda): allineati al gate backend
+// user/WRITE, ma ristretti agli admin "di organizzazione".
+const ORG_ADMIN_ROLES = ['owner', 'admin', 'manager'];
 
 // Settings a tab con stato locale (niente routing per-tab, stesso approccio dell'originale React).
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [ObjectsTab, UsersTab, ApiKeysTab, WorkflowsTab, RolesTab],
+  imports: [ObjectsTab, UsersTab, ApiKeysTab, WorkflowsTab, RolesTab, CompanyTab],
   templateUrl: './settings.html'
 })
 export class Settings {
+  private readonly auth = inject(AuthService);
+
   protected readonly tab = signal<Tab>('objects');
 
-  protected readonly tabs: { id: Tab; label: string }[] = [
-    { id: 'objects', label: 'Oggetti' },
-    { id: 'users', label: 'Utenti' },
-    { id: 'apikeys', label: 'API Key' },
-    { id: 'workflows', label: 'Workflow' },
-    { id: 'roles', label: 'Ruoli' }
-  ];
+  private readonly isOrgAdmin = computed(() =>
+    (this.auth.user()?.roles ?? []).some((r) => ORG_ADMIN_ROLES.includes(r))
+  );
+
+  // la tab "Azienda" compare solo agli org-admin (per gli altri non ha senso e il salvataggio
+  // sarebbe comunque negato dal backend)
+  protected readonly tabs = computed<{ id: Tab; label: string }[]>(() => {
+    const base: { id: Tab; label: string }[] = [
+      { id: 'objects', label: 'Oggetti' },
+      { id: 'users', label: 'Utenti' },
+      { id: 'apikeys', label: 'API Key' },
+      { id: 'workflows', label: 'Workflow' },
+      { id: 'roles', label: 'Ruoli' }
+    ];
+    if (this.isOrgAdmin()) {
+      base.push({ id: 'company', label: 'Azienda' });
+    }
+    return base;
+  });
 }
