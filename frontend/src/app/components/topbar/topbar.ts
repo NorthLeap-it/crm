@@ -1,12 +1,13 @@
 import { Component, DestroyRef, computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Bell, LogOut, LucideAngularModule, Moon, Settings, Sun } from 'lucide-angular';
+import { Bell, Languages, LogOut, LucideAngularModule, Moon, Settings, Sun } from 'lucide-angular';
 import { switchMap, timer } from 'rxjs';
 
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
 import { ThemeService } from '../../services/theme.service';
+import { I18nService } from '../../services/i18n';
 
 const NOTIFICATION_POLL_MS = 60_000;
 
@@ -27,6 +28,8 @@ export class Topbar {
   private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  // servizio per la lingua
+  readonly i18n = inject(I18nService);
 
   protected readonly user = this.auth.user;
   protected readonly notifications = this.notificationService.items;
@@ -38,6 +41,7 @@ export class Topbar {
   protected readonly MoonIcon = Moon;
   protected readonly SettingsIcon = Settings;
   protected readonly LogOutIcon = LogOut;
+  protected readonly Languages = Languages;
 
   constructor() {
     timer(0, NOTIFICATION_POLL_MS)

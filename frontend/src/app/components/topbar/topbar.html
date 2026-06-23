@@ -8,6 +8,10 @@
     <a routerLink="/" class="text-lg font-semibold px-2">NorthLeap</a>
   </div>
   <div class="flex-none flex items-center gap-1">
+    <button class="btn btn-ghost btn-square rounded-sm" (click)="i18n.toggle()">
+      <lucide-icon [img]="Languages" [size]="18"/>
+    </button> 
+    
     <button class="btn btn-ghost btn-square rounded-sm" (click)="toggleTheme()" [attr.aria-label]="isDark() ? 'Tema chiaro' : 'Tema scuro'">
       <lucide-icon [img]="isDark() ? SunIcon : MoonIcon" [size]="18" />
     </button>
@@ -21,9 +25,9 @@
       </button>
       <div tabindex="0" class="dropdown-content bg-base-100 rounded-sm border border-base-300 z-30 w-80 p-0 shadow">
         <div class="flex items-center justify-between p-3 border-b border-base-300">
-          <span class="font-semibold text-sm">Notifiche</span>
+          <span class="font-semibold text-sm">{{ i18n.t('topbar.notifications') }}</span>
           @if (unreadCount() > 0) {
-            <button class="link link-primary text-xs" (click)="markAllRead()">Segna tutte lette</button>
+            <button class="link link-primary text-xs" (click)="markAllRead()">{{ i18n.t('topbar.markAllRead') }}</button>
           }
         </div>
         <ul class="max-h-80 overflow-y-auto">
@@ -35,7 +39,7 @@
               }
             </li>
           } @empty {
-            <li class="p-4 text-center text-sm text-base-content/50">Nessuna notifica</li>
+            <li class="p-4 text-center text-sm text-base-content/50">{{ i18n.t('notifications.empty') }}</li>
           }
         </ul>
       </div>
@@ -51,8 +55,8 @@
         <span class="hidden sm:inline text-sm">{{ user()?.name }}</span>
       </button>
       <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-sm border border-base-300 z-30 w-48 p-1 shadow">
-        <li><a routerLink="/settings"><lucide-icon [img]="SettingsIcon" [size]="16" /> Impostazioni</a></li>
-        <li><button (click)="logout()"><lucide-icon [img]="LogOutIcon" [size]="16" /> Esci</button></li>
+        <li><a routerLink="/settings"><lucide-icon [img]="SettingsIcon" [size]="16" /> {{ i18n.t('topbar.settings') }}</a></li>
+        <li><button (click)="logout()"><lucide-icon [img]="LogOutIcon" [size]="16" /> {{ i18n.t('topbar.logout') }}</button></li>
       </ul>
     </div>
   </div>
