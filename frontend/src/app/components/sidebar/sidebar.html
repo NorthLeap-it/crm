@@ -52,10 +52,19 @@
     </a>
   </div>
 
-  <!-- maniglia di resize: trascina per allargare/stringere -->
+  <!-- maniglia di resize: trascina per allargare/stringere, doppio click per il toggle, frecce da tastiera -->
   <div
-    class="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40"
+    class="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 focus-visible:bg-primary/60 outline-none touch-none"
     [class.bg-primary]="dragging()"
-    (mousedown)="startDrag($event)"
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Ridimensiona sidebar"
+    tabindex="0"
+    [attr.aria-valuemin]="MIN_WIDTH"
+    [attr.aria-valuemax]="MAX_WIDTH"
+    [attr.aria-valuenow]="width()"
+    (pointerdown)="startDrag($event)"
+    (dblclick)="toggle()"
+    (keydown)="onKeydown($event)"
   ></div>
 </aside>

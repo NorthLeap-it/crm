@@ -7,9 +7,13 @@ import { resolveObjectIcon } from '../../core/object-icons';
 import { ObjectType } from '../../models/object-type';
 import { ObjectTypeService } from '../../services/object-type.service';
 
-const MIN_WIDTH = 64; // rail con sole icone
+const MIN_WIDTH = 64;        // rail con sole icone
 const MAX_WIDTH = 200;
+const EXPANDED_WIDTH = 184;  // larghezza "comoda" con le etichette, usata da toggle e snap
 const LABEL_THRESHOLD = 150; // oltre questa larghezza ricompaiono le etichette
+const KEY_STEP = 16;         // di quanto si muove la larghezza con le frecce
+const SNAP_THRESHOLD = 12;   // se rilasci/passi entro questa distanza da un punto, ci si "attacca"
+const SNAP_TARGETS = [MIN_WIDTH, EXPANDED_WIDTH];
 const STORAGE_KEY = 'sidebar-width';
 
 // Sidebar ridimensionabile: di default un rail stretto con sole icone (piu' grandi); trascinando
@@ -40,6 +44,10 @@ export class Sidebar {
   // icona settings
   protected readonly SettingsIcon = Settings;
 
+  // estremi esposti al template (per gli attributi aria della maniglia)
+  protected readonly MIN_WIDTH = MIN_WIDTH;
+  protected readonly MAX_WIDTH = MAX_WIDTH;
+
   // grandezza, cambiata direttamente tramite il signal
   protected readonly width: WritableSignal<number> = signal(readInitialWidth());
   protected readonly dragging: WritableSignal<boolean> = signal(false);
@@ -52,6 +60,7 @@ export class Sidebar {
   private frame = 0;
   private stopMove?: () => void;
   private stopUp?: () => void;
+  private stopCancel?: () => void;
 
   protected iconFor(obj: ObjectType) {
     return resolveObjectIcon(obj.icon);
@@ -64,11 +73,16 @@ export class Sidebar {
     this.destroyRef.onDestroy(() => this.teardown());
   }
 
-  // inizio del drag: registro mousemove/mouseup SOLO ora e FUORI dalla zona Angular, cosi' i
-  // movimenti del mouse non scatenano change detection a ogni frame. Lavoro a delta da startX
-  // (niente getBoundingClientRect per frame -> niente reflow forzato).
-  protected startDrag(event: MouseEvent): void {
+  // inizio del drag. Uso i Pointer Events + setPointerCapture: cosi' il drag funziona anche con
+  // touch/penna e tutti i pointermove/up vengono "catturati" dalla maniglia anche quando il
+  // puntatore esce da essa o dalla finestra (niente listener orfani su document). Registro i
+  // listener FUORI dalla zona Angular, cosi' i movimenti non scatenano change detection a ogni
+  // frame, e lavoro a delta da startX (niente getBoundingClientRect per frame -> niente reflow).
+  protected startDrag(event: PointerEvent): void {
     event.preventDefault();
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture(event.pointerId);
+
     this.startX = event.clientX;
     this.startWidth = this.width();
     this.pendingWidth = this.startWidth;
@@ -78,14 +92,17 @@ export class Sidebar {
     this.renderer.setStyle(document.body, 'cursor', 'col-resize');
 
     this.zone.runOutsideAngular(() => {
-      this.stopMove = this.renderer.listen('document', 'mousemove', (e: MouseEvent) => this.onMove(e));
-      this.stopUp = this.renderer.listen('document', 'mouseup', () => this.endDrag());
+      this.stopMove = this.renderer.listen(handle, 'pointermove', (e: PointerEvent) => this.onMove(e));
+      this.stopUp = this.renderer.listen(handle, 'pointerup', () => this.endDrag());
+      this.stopCancel = this.renderer.listen(handle, 'pointercancel', () => this.endDrag());
     });
   }
 
-  private onMove(event: MouseEvent): void {
+  private onMove(event: PointerEvent): void {
     const delta = event.clientX - this.startX;
-    this.pendingWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, this.startWidth + delta));
+    // niente snap qui: durante il drag seguo il cursore 1:1, continuo e fluido. Lo snap
+    // "magnetico" a meta' trascinamento era proprio cio' che dava la sensazione a scatti.
+    this.pendingWidth = clamp(this.startWidth + delta);
     // throttle: al massimo un aggiornamento per frame, e rientro in Angular solo nel rAF
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
@@ -97,10 +114,37 @@ export class Sidebar {
   private endDrag(): void {
     this.zone.run(() => {
       this.dragging.set(false);
-      this.width.set(this.pendingWidth);
-      localStorage.setItem(STORAGE_KEY, String(this.pendingWidth));
+      // lo snap si applica SOLO al rilascio: la larghezza "scatta" dolcemente al rail o alla
+      // misura espansa piu' vicina, e dato che dragging() e' gia' false la transizione CSS
+      // anima il piccolo aggiustamento invece di farlo di colpo.
+      this.persist(snap(this.pendingWidth));
     });
     this.teardown();
+  }
+
+  // doppio click sulla maniglia: toggle tra rail e larghezza espansa (animato, perche' fuori dal
+  // drag la classe transition-[width] e' attiva)
+  protected toggle(): void {
+    this.persist(this.width() > LABEL_THRESHOLD ? MIN_WIDTH : EXPANDED_WIDTH);
+  }
+
+  // accessibilita': la maniglia e' focusabile, le frecce la ridimensionano, Home/End vanno agli estremi
+  protected onKeydown(event: KeyboardEvent): void {
+    let next: number | null = null;
+    switch (event.key) {
+      case 'ArrowLeft': next = this.width() - KEY_STEP; break;
+      case 'ArrowRight': next = this.width() + KEY_STEP; break;
+      case 'Home': next = MIN_WIDTH; break;
+      case 'End': next = MAX_WIDTH; break;
+      default: return;
+    }
+    event.preventDefault();
+    this.persist(clamp(next));
+  }
+
+  private persist(value: number): void {
+    this.width.set(value);
+    localStorage.setItem(STORAGE_KEY, String(value));
   }
 
   private teardown(): void {
@@ -110,8 +154,10 @@ export class Sidebar {
     }
     this.stopMove?.();
     this.stopUp?.();
+    this.stopCancel?.();
     this.stopMove = undefined;
     this.stopUp = undefined;
+    this.stopCancel = undefined;
     this.renderer.removeStyle(document.body, 'user-select');
     this.renderer.removeStyle(document.body, 'cursor');
   }
@@ -120,6 +166,17 @@ export class Sidebar {
   toDashboard(): void {
     this.router.navigateByUrl('');
   }
+}
+
+function clamp(value: number): number {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
+}
+
+function snap(value: number): number {
+  for (const target of SNAP_TARGETS) {
+    if (Math.abs(value - target) <= SNAP_THRESHOLD) return target;
+  }
+  return value;
 }
 
 function readInitialWidth(): number {
