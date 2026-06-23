@@ -1,24 +1,30 @@
 <header class="navbar bg-base-100 border-b border-base-300 sticky top-0 z-20 px-4">
-  <div class="flex-none lg:hidden">
-    <label for="app-drawer" class="btn btn-ghost btn-square rounded-sm">
+  <div class="flex-1 flex items-center gap-1">
+    <label for="app-drawer" class="btn btn-ghost btn-square rounded-sm lg:hidden">
       <span class="text-lg">☰</span>
     </label>
+    <a routerLink="/" class="text-lg font-semibold px-2">{{ workspace.displayName() }}</a>
   </div>
-  <div class="flex-1">
-    <a routerLink="/" class="text-lg font-semibold px-2">NorthLeap</a>
+
+  <div class="flex-none">
+    <div class="flex items-center gap-2 pl-4 h-[36px] w-80 max-w-md rounded-full border border-gray-500/30 overflow-hidden transition duration-300 ease-out hover:border-gray-550 hover:ring-1 hover:ring-gray-600 focus-within:border-gray-550 focus-within:ring-1 focus-within:ring-gray-600">
+      <lucide-icon [img]="SearchIcon" [size]="17" class="shrink-0 text-gray-500" />
+      <input type="text" placeholder="Cerca" class="w-full h-full outline-none text-gray-500 bg-transparent placeholder-gray-500 text-sm" />
+    </div>
   </div>
-  <div class="flex-none flex items-center gap-1">
-    <button class="btn btn-ghost btn-square rounded-sm" (click)="i18n.toggle()">
-      <lucide-icon [img]="Languages" [size]="18"/>
+
+  <div class="flex-1 flex items-center justify-end gap-1">
+    <button class="group p-2 cursor-pointer" (click)="i18n.toggle()" aria-label="Lingua">
+      <lucide-icon [img]="Languages" [size]="18" class="transition duration-200 group-hover:blur-[0.5px]"/> 
     </button> 
     
-    <button class="btn btn-ghost btn-square rounded-sm" (click)="toggleTheme()" [attr.aria-label]="isDark() ? 'Tema chiaro' : 'Tema scuro'">
-      <lucide-icon [img]="isDark() ? SunIcon : MoonIcon" [size]="18" />
+    <button class="group p-2 cursor-pointer" (click)="toggleTheme()" [attr.aria-label]="isDark() ? 'Tema chiaro' : 'Tema scuro'">
+      <lucide-icon [img]="isDark() ? SunIcon : MoonIcon" [size]="18" class="transition duration-200 group-hover:blur-[0.5px]" />
     </button>
 
     <div class="dropdown dropdown-end">
-      <button tabindex="0" class="btn btn-ghost btn-square rounded-sm relative" aria-label="Notifiche">
-        <lucide-icon [img]="BellIcon" [size]="18" />
+      <button tabindex="0" class="group p-2 cursor-pointer relative" aria-label="Notifiche">
+        <lucide-icon [img]="BellIcon" [size]="18" class="transition duration-200 group-hover:blur-[0.5px]" />
         @if (unreadCount() > 0) {
           <span class="badge badge-error badge-xs absolute top-1 right-1">{{ unreadCount() }}</span>
         }
@@ -46,8 +52,8 @@
     </div>
 
     <div class="dropdown dropdown-end">
-      <button tabindex="0" class="btn btn-ghost rounded-sm gap-2">
-        <div class="avatar avatar-placeholder">
+      <button tabindex="0" class="group flex items-center gap-2 p-1 cursor-pointer">
+        <div class="avatar avatar-placeholder transition duration-200 group-hover:blur-[0.5px]">
           <div class="bg-neutral text-neutral-content rounded-full w-8">
             <span class="text-xs">{{ (user()?.name ?? '?').charAt(0) }}</span>
           </div>

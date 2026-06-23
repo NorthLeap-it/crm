@@ -1,13 +1,14 @@
 import { Component, DestroyRef, computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { Bell, Languages, LogOut, LucideAngularModule, Moon, Settings, Sun } from 'lucide-angular';
+import { Bell, Languages, LogOut, LucideAngularModule, Moon, Search, Settings, Sun } from 'lucide-angular';
 import { switchMap, timer } from 'rxjs';
 
 import { AuthService } from '../../services/auth.service';
 import { NotificationService } from '../../services/notification.service';
 import { ThemeService } from '../../services/theme.service';
 import { I18nService } from '../../services/i18n';
+import { Workspace } from '../../services/workspace';
 
 const NOTIFICATION_POLL_MS = 60_000;
 
@@ -23,6 +24,7 @@ const NOTIFICATION_POLL_MS = 60_000;
   styles: ':host { display: contents; }'
 })
 export class Topbar {
+  // service notifiche
   private readonly notificationService = inject(NotificationService);
   private readonly auth = inject(AuthService);
   private readonly theme = inject(ThemeService);
@@ -30,20 +32,24 @@ export class Topbar {
   private readonly destroyRef = inject(DestroyRef);
   // servizio per la lingua
   readonly i18n = inject(I18nService);
+  protected readonly workspace = inject(Workspace);
 
   protected readonly user = this.auth.user;
   protected readonly notifications = this.notificationService.items;
   protected readonly unreadCount = this.notificationService.unreadCount;
   protected readonly isDark = computed(() => this.theme.theme() === 'dark');
 
+  // libreria lucide
   protected readonly BellIcon = Bell;
   protected readonly SunIcon = Sun;
   protected readonly MoonIcon = Moon;
   protected readonly SettingsIcon = Settings;
   protected readonly LogOutIcon = LogOut;
   protected readonly Languages = Languages;
+  protected readonly SearchIcon = Search;
 
   constructor() {
+    this.workspace.load().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
     timer(0, NOTIFICATION_POLL_MS)
       .pipe(
         switchMap(() => this.notificationService.refresh()),
