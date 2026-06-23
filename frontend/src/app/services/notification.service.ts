@@ -1,20 +1,21 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, WritableSignal, computed, inject, signal } from '@angular/core';
 import { tap } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api-config';
 import { Notification } from '../models/notification';
 
-// Niente realtime (il backend non ha WebSocket/SSE, 04-RESTO-MODULI.md sceglie il polling come
-// MVP): la campanella nel layout chiama refresh() a intervalli. Endpoint: GET /api/notifications,
-// PATCH /read-all, PATCH /{id}/read.
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
+  // importo http client
   private readonly http = inject(HttpClient);
+  // endpoint base
   private readonly base = `${API_BASE_URL}/api/notifications`;
 
-  private readonly _items = signal<Notification[]>([]);
+  // array che contiene le notifiche
+  private readonly _items: WritableSignal<Notification[]> = signal([]);
   readonly items = this._items.asReadonly();
+  // array filtrato, con numero di notifiche non lette
   readonly unreadCount = computed(() => this._items().filter((n) => n.readAt == null).length);
 
   refresh() {

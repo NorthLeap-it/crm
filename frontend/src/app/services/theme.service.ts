@@ -1,16 +1,14 @@
-import { Injectable, effect, signal } from '@angular/core';
+import { Injectable, WritableSignal, effect, signal } from '@angular/core';
 
 export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'theme';
 
-// daisyUI switches palette via the data-theme attribute on <html>. The actual *first* paint
-// is handled by an inline script in index.html (runs before Angular bootstraps, avoids a
-// flash of the wrong theme) - this service just keeps it in sync afterwards and exposes the
-// signal for a toggle button.
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  private readonly _theme = signal<Theme>(readInitialTheme());
+
+  // servizio per cambiare tema
+  private readonly _theme: WritableSignal<Theme> = signal<Theme>(readInitialTheme());
   readonly theme = this._theme.asReadonly();
 
   constructor() {

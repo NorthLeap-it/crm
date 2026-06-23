@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, WritableSignal, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, of, switchMap, tap } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api-config';
@@ -29,16 +29,18 @@ interface OnboardingPayload {
 // JS) - questo service tiene solo lo stato "chi e' loggato", popolato da GET /auth/me.
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  // client http
   private readonly http = inject(HttpClient);
 
-  private readonly _user = signal<MeResponse | null>(null);
+  // utente
+  private readonly _user: WritableSignal<MeResponse | null> = signal(null);
   private readonly _loading = signal(true);
 
   readonly user = this._user.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly isAuthenticated = computed(() => this._user() !== null);
 
-  // chiamata una volta al bootstrap (vedi provideAppInitializer in app.config.ts) e dopo ogni
+  // chiamata una volta al bootstrap (provideAppInitializer in app.config.ts) e dopo ogni
   // login/onboarding riuscito, per popolare/aggiornare user+roles da /me
   load(): Observable<MeResponse | null> {
     this._loading.set(true);
