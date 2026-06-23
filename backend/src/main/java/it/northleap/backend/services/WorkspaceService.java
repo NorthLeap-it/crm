@@ -1,7 +1,8 @@
 package it.northleap.backend.services;
 
 import it.northleap.backend.dtos.UpdateWorkspaceDto;
-import it.northleap.backend.dtos.WorkspaceResponse;
+import it.northleap.backend.dtos.WorkspaceBrandResponse;
+import it.northleap.backend.dtos.WorkspaceProfileResponse;
 import it.northleap.backend.entities.Workspace;
 import it.northleap.backend.exceptions.NotFoundException;
 import it.northleap.backend.repositories.WorkspaceRepository;
@@ -18,12 +19,19 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
 
-    public WorkspaceResponse get() {
+    // vista brand pubblica (topbar): solo name/brandColor/logoUrl
+    public WorkspaceBrandResponse get() {
         return toResponse(currentWorkspace());
     }
 
+    // vista profilo (solo admin): per ora i campi brand, la Fase 1 vi aggiungera' l'anagrafica org
+    public WorkspaceProfileResponse getProfile() {
+        Workspace ws = currentWorkspace();
+        return new WorkspaceProfileResponse(ws.getName(), ws.getBrandColor(), ws.getLogoUrl());
+    }
+
     @Transactional
-    public WorkspaceResponse update(UpdateWorkspaceDto dto) {
+    public WorkspaceBrandResponse update(UpdateWorkspaceDto dto) {
         Workspace workspace = currentWorkspace();
         workspace.setName(dto.getName());
         // brandColor/logoUrl: aggiornati solo se forniti, altrimenti restano com'erano
@@ -42,7 +50,7 @@ public class WorkspaceService {
                 .orElseThrow(() -> new NotFoundException("Workspace non configurato"));
     }
 
-    private WorkspaceResponse toResponse(Workspace workspace) {
-        return new WorkspaceResponse(workspace.getName(), workspace.getBrandColor(), workspace.getLogoUrl());
+    private WorkspaceBrandResponse toResponse(Workspace workspace) {
+        return new WorkspaceBrandResponse(workspace.getName(), workspace.getBrandColor(), workspace.getLogoUrl());
     }
 }

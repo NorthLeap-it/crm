@@ -1,7 +1,8 @@
 package it.northleap.backend.controllers;
 
 import it.northleap.backend.dtos.UpdateWorkspaceDto;
-import it.northleap.backend.dtos.WorkspaceResponse;
+import it.northleap.backend.dtos.WorkspaceBrandResponse;
+import it.northleap.backend.dtos.WorkspaceProfileResponse;
 import it.northleap.backend.security.PermAction;
 import it.northleap.backend.security.RequirePerm;
 import it.northleap.backend.services.WorkspaceService;
@@ -21,14 +22,24 @@ public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
 
+    // get, prende solo il brand, quindi name, brandColor, logoUrl
+    // gestito tramite dto
     @GetMapping
-    public ResponseEntity<WorkspaceResponse> get() {
+    public ResponseEntity<WorkspaceBrandResponse> get() {
         return ResponseEntity.ok(workspaceService.get());
+    }
+
+    // prende un profilo di uno
+    // ma deve essere admin
+    @GetMapping("/profile")
+    @RequirePerm(resource = "user", action=PermAction.READ)
+    public ResponseEntity<WorkspaceProfileResponse> getProfile() {
+        return ResponseEntity.ok(workspaceService.getProfile());
     }
 
     @PatchMapping
     @RequirePerm(resource = "user", action = PermAction.WRITE)
-    public ResponseEntity<WorkspaceResponse> update(@Valid @RequestBody UpdateWorkspaceDto dto) {
+    public ResponseEntity<WorkspaceBrandResponse> update(@Valid @RequestBody UpdateWorkspaceDto dto) {
         return ResponseEntity.ok(workspaceService.update(dto));
     }
 }

@@ -1,7 +1,8 @@
 package it.northleap.backend.services;
 
 import it.northleap.backend.dtos.UpdateWorkspaceDto;
-import it.northleap.backend.dtos.WorkspaceResponse;
+import it.northleap.backend.dtos.WorkspaceBrandResponse;
+import it.northleap.backend.dtos.WorkspaceProfileResponse;
 import it.northleap.backend.entities.Workspace;
 import it.northleap.backend.exceptions.NotFoundException;
 import it.northleap.backend.repositories.WorkspaceRepository;
@@ -38,7 +39,17 @@ class WorkspaceServiceTest {
     void getMapsTheCurrentWorkspace() {
         when(workspaceRepository.findTopByOrderByCreatedAtAsc()).thenReturn(Optional.of(existingWorkspace()));
 
-        WorkspaceResponse result = newService().get();
+        WorkspaceBrandResponse result = newService().get();
+
+        assertEquals("NorthLeap", result.name());
+        assertEquals("#0A84FF", result.brandColor());
+    }
+
+    @Test
+    void getProfileReturnsTheCurrentWorkspace() {
+        when(workspaceRepository.findTopByOrderByCreatedAtAsc()).thenReturn(Optional.of(existingWorkspace()));
+
+        WorkspaceProfileResponse result = newService().getProfile();
 
         assertEquals("NorthLeap", result.name());
         assertEquals("#0A84FF", result.brandColor());
@@ -51,7 +62,7 @@ class WorkspaceServiceTest {
 
         UpdateWorkspaceDto dto = new UpdateWorkspaceDto();
         dto.setName("Acme Inc.");
-        WorkspaceResponse result = newService().update(dto);
+        WorkspaceBrandResponse result = newService().update(dto);
 
         assertEquals("Acme Inc.", ws.getName());
         assertEquals("Acme Inc.", result.name());
