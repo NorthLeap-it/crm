@@ -24,7 +24,7 @@
       </div>
       <div class="sm:col-span-2">
         <label class="block text-sm mb-1">Icona</label>
-        <div class="flex flex-wrap gap-1">
+        <div class="flex flex-wrap gap-1 max-h-40 overflow-y-auto p-0.5">
           <button type="button" (click)="form.controls.icon.setValue('')" title="Nessuna"
                   class="w-8 h-8 flex items-center justify-center rounded-sm border transition text-xs text-base-content/40"
                   [class.border-primary]="!form.controls.icon.value"
@@ -120,7 +120,7 @@
                   </label>
                   <div class="sm:col-span-2">
                     <label class="block text-xs mb-1">Icona</label>
-                    <div class="flex flex-wrap gap-1">
+                    <div class="flex flex-wrap gap-1 max-h-40 overflow-y-auto p-0.5">
                       <!-- nessuna icona -->
                       <button type="button" (click)="fieldForm.controls.icon.setValue('')" title="Nessuna"
                               class="w-8 h-8 flex items-center justify-center rounded-sm border transition text-xs text-base-content/40"
