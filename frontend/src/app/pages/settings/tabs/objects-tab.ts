@@ -1,8 +1,10 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { LucideAngularModule } from 'lucide-angular';
 import { Subject, catchError, of, startWith, switchMap, tap } from 'rxjs';
 
+import { ICON_KEYS, resolveObjectIcon } from '../../../core/object-icons';
 import { UiButton } from '../../../components/ui/button';
 import { UiSpinner } from '../../../components/ui/spinner';
 import { FIELD_TYPES, FieldDef, FieldType, ObjectType } from '../../../models/object-type';
@@ -11,7 +13,7 @@ import { ObjectTypeService } from '../../../services/object-type.service';
 @Component({
   selector: 'app-objects-tab',
   standalone: true,
-  imports: [ReactiveFormsModule, UiButton, UiSpinner],
+  imports: [ReactiveFormsModule, UiButton, UiSpinner, LucideAngularModule],
   templateUrl: './objects-tab.html'
 })
 export class ObjectsTab {
@@ -47,6 +49,9 @@ export class ObjectsTab {
 
   // --- gestione campi (aggiungi/elimina) ---
   protected readonly fieldTypes = FIELD_TYPES;
+  // icone selezionabili + resolver, riusati dal registro condiviso (core/object-icons)
+  protected readonly iconKeys = ICON_KEYS;
+  protected readonly resolveIcon = resolveObjectIcon;
   protected readonly addingField = signal(false);
   protected readonly fieldSubmitting = signal(false);
   protected readonly fieldError = signal<string | null>(null);
@@ -55,7 +60,8 @@ export class ObjectsTab {
     key: ['', [Validators.required, Validators.pattern('^[a-zA-Z0-9_]{1,64}$')]],
     label: ['', Validators.required],
     type: ['TEXT' as FieldType, Validators.required],
-    required: [false]
+    required: [false],
+    icon: ['']
   });
 
   protected toggle(key: string): void {

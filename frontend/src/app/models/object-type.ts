@@ -68,4 +68,5 @@ export interface FieldDef {
   readonly: boolean;
   sortable: boolean;
   unique: boolean;
+  icon: string | null;
 }

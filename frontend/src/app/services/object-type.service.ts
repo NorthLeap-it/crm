@@ -39,7 +39,7 @@ export class ObjectTypeService {
   }
 
   // aggiunge un campo a un object type (il backend ritorna l'oggetto aggiornato)
-  addField(key: string, dto: { key: string; label: string; type: FieldType; required?: boolean }) {
+  addField(key: string, dto: { key: string; label: string; type: FieldType; required?: boolean; icon?: string }) {
     return this.http.post<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields`, dto);
   }
 

@@ -55,3 +55,7 @@ const ICONS: Record<string, LucideIconData> = {
 export function resolveObjectIcon(icon: string | null | undefined): LucideIconData {
   return (icon && ICONS[icon]) || Box;
 }
+
+// Chiavi icona selezionabili (per i picker, es. scelta icona di un campo/oggetto). Sono le
+// stesse chiavi mappate sopra, così tutto si risolve poi con resolveObjectIcon.
+export const ICON_KEYS: string[] = Object.keys(ICONS);

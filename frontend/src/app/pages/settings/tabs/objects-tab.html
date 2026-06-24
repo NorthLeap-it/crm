@@ -55,7 +55,12 @@
                 <tbody>
                   @for (f of obj.fields; track f.id) {
                     <tr>
-                      <td>{{ f.label }}</td>
+                      <td>
+                        <span class="inline-flex items-center gap-1.5">
+                          @if (f.icon) { <lucide-icon [img]="resolveIcon(f.icon)" [size]="14" /> }
+                          {{ f.label }}
+                        </span>
+                      </td>
                       <td><code>{{ f.key }}</code></td>
                       <td>{{ f.type }}</td>
                       <td>{{ f.required ? '✓' : '' }}</td>
@@ -91,6 +96,25 @@
                   <label class="flex items-center gap-2 text-sm sm:mt-6">
                     <input type="checkbox" formControlName="required" class="checkbox checkbox-sm rounded-sm" /> Obbligatorio
                   </label>
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs mb-1">Icona</label>
+                    <div class="flex flex-wrap gap-1">
+                      <!-- nessuna icona -->
+                      <button type="button" (click)="fieldForm.controls.icon.setValue('')" title="Nessuna"
+                              class="w-8 h-8 flex items-center justify-center rounded-sm border transition text-xs text-base-content/40"
+                              [class.border-primary]="!fieldForm.controls.icon.value"
+                              [class.border-base-300]="!!fieldForm.controls.icon.value">∅</button>
+                      @for (k of iconKeys; track k) {
+                        <button type="button" (click)="fieldForm.controls.icon.setValue(k)" [title]="k"
+                                class="w-8 h-8 flex items-center justify-center rounded-sm border transition"
+                                [class.border-primary]="fieldForm.controls.icon.value === k"
+                                [class.text-primary]="fieldForm.controls.icon.value === k"
+                                [class.border-base-300]="fieldForm.controls.icon.value !== k">
+                          <lucide-icon [img]="resolveIcon(k)" [size]="16" />
+                        </button>
+                      }
+                    </div>
+                  </div>
                   @if (fieldError()) {
                     <div class="sm:col-span-2 alert alert-error rounded-sm py-1 text-xs">{{ fieldError() }}</div>
                   }
