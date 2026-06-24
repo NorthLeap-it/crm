@@ -3,27 +3,9 @@ import { Injectable, WritableSignal, computed, inject, signal } from '@angular/c
 import { Observable, catchError, of, switchMap, tap } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api-config';
-
-export interface MeResponse {
-  userId: string;
-  email: string;
-  name: string;
-  avatarUrl: string | null;
-  roles: string[];
-}
-
-interface AuthResponse {
-  userId: string;
-  email: string;
-  name: string;
-}
-
-interface OnboardingPayload {
-  workspaceName: string;
-  email: string;
-  password: string;
-  name: string;
-}
+import { IAuthResponse } from '../models/IAuthResponse';
+import { IMeResponse } from '../models/IMeResponse';
+import { IOnboardingPayload } from '../models/IOnboardingPayload';
 
 // I token JWT vivono solo nei cookie httpOnly impostati dal backend (mai letti/scritti qui via
 // JS) - questo service tiene solo lo stato "chi e' loggato", popolato da GET /auth/me.
@@ -33,7 +15,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
 
   // utente
-  private readonly _user: WritableSignal<MeResponse | null> = signal(null);
+  private readonly _user: WritableSignal<IMeResponse | null> = signal(null);
   private readonly _loading = signal(true);
 
   readonly user = this._user.asReadonly();
@@ -42,9 +24,9 @@ export class AuthService {
 
   // chiamata una volta al bootstrap (provideAppInitializer in app.config.ts) e dopo ogni
   // login/onboarding riuscito, per popolare/aggiornare user+roles da /me
-  load(): Observable<MeResponse | null> {
+  load(): Observable<IMeResponse | null> {
     this._loading.set(true);
-    return this.http.get<MeResponse>(`${API_BASE_URL}/api/auth/me`).pipe(
+    return this.http.get<IMeResponse>(`${API_BASE_URL}/api/auth/me`).pipe(
       tap((user) => {
         this._user.set(user);
         this._loading.set(false);
@@ -57,22 +39,23 @@ export class AuthService {
     );
   }
 
-  login(email: string, password: string): Observable<MeResponse | null> {
+  // metodo login che punta all'omonimo endpoint
+  login(email: string, password: string): Observable<IMeResponse | null> {
     return this.http
-      .post<AuthResponse>(`${API_BASE_URL}/api/auth/login`, { email, password })
+      .post<IAuthResponse>(`${API_BASE_URL}/api/auth/login`, { email, password })
       .pipe(switchMap(() => this.load()));
   }
 
-  onboarding(payload: OnboardingPayload): Observable<MeResponse | null> {
+  onboarding(payload: IOnboardingPayload): Observable<IMeResponse | null> {
     return this.http
-      .post<AuthResponse>(`${API_BASE_URL}/api/auth/onboarding`, payload)
+      .post<IAuthResponse>(`${API_BASE_URL}/api/auth/onboarding`, payload)
       .pipe(switchMap(() => this.load()));
   }
 
   // usata internamente dall'interceptor su 401/403; nessun refresh token nel body, viaggia
   // come cookie automaticamente
-  refresh(): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${API_BASE_URL}/api/auth/refresh`, {});
+  refresh(): Observable<IAuthResponse> {
+    return this.http.post<IAuthResponse>(`${API_BASE_URL}/api/auth/refresh`, {});
   }
 
   logout(): Observable<void> {
