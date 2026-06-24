@@ -12,8 +12,6 @@ const MAX_WIDTH = 200;
 const EXPANDED_WIDTH = 184;  // larghezza "comoda" con le etichette, usata da toggle e snap
 const LABEL_THRESHOLD = 150; // oltre questa larghezza ricompaiono le etichette
 const KEY_STEP = 16;         // di quanto si muove la larghezza con le frecce
-const SNAP_THRESHOLD = 12;   // se rilasci/passi entro questa distanza da un punto, ci si "attacca"
-const SNAP_TARGETS = [MIN_WIDTH, EXPANDED_WIDTH];
 const STORAGE_KEY = 'sidebar-width';
 
 // Sidebar ridimensionabile: di default un rail stretto con sole icone (piu' grandi); trascinando
@@ -58,6 +56,7 @@ export class Sidebar {
   private startWidth = 0;
   private pendingWidth = 0;
   private frame = 0;
+  private asideEl?: HTMLElement; // il pannello ridimensionabile, scritto direttamente durante il drag
   private stopMove?: () => void;
   private stopUp?: () => void;
   private stopCancel?: () => void;
@@ -82,6 +81,7 @@ export class Sidebar {
     event.preventDefault();
     const handle = event.currentTarget as HTMLElement;
     handle.setPointerCapture(event.pointerId);
+    this.asideEl = handle.closest('aside') ?? undefined;
 
     this.startX = event.clientX;
     this.startWidth = this.width();
@@ -100,23 +100,31 @@ export class Sidebar {
 
   private onMove(event: PointerEvent): void {
     const delta = event.clientX - this.startX;
-    // niente snap qui: durante il drag seguo il cursore 1:1, continuo e fluido. Lo snap
-    // "magnetico" a meta' trascinamento era proprio cio' che dava la sensazione a scatti.
     this.pendingWidth = clamp(this.startWidth + delta);
-    // throttle: al massimo un aggiornamento per frame, e rientro in Angular solo nel rAF
+    // throttle: al massimo un aggiornamento per frame
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
-      this.zone.run(() => this.width.set(this.pendingWidth));
+      // scrivo la larghezza DIRETTAMENTE sul DOM, fuori da Angular: nessuna change detection
+      // per-frame, nessun ricalcolo del template -> il pannello insegue il cursore senza ritardo,
+      // come l'explorer di VS Code. La transizione e' gia' 'none' (vedi [style.transition] in HTML
+      // mentre dragging() e' true), quindi la larghezza non viene animata e segue 1:1.
+      this.renderer.setStyle(this.asideEl, 'width', this.pendingWidth + 'px');
+      // le etichette compaiono/scompaiono solo quando si ATTRAVERSA la soglia (raro), non a ogni
+      // pixel: solo in quel momento rientro in Angular per aggiornare il signal e ridisegnare.
+      if ((this.pendingWidth >= LABEL_THRESHOLD) !== this.showLabels()) {
+        this.zone.run(() => this.width.set(this.pendingWidth));
+      }
     });
   }
 
   private endDrag(): void {
     this.zone.run(() => {
+      // dragging() torna false -> [style.transition] riattiva la transizione CSS, cosi' l'eventuale
+      // collasso al rail viene animato dolcemente invece di scattare. La larghezza durante il drag
+      // l'ha scritta onMove direttamente sul DOM; qui sincronizzo il signal (fonte di verita') con
+      // il valore finale, ed e' lui a guidare di nuovo [style.width.px].
       this.dragging.set(false);
-      // lo snap si applica SOLO al rilascio: la larghezza "scatta" dolcemente al rail o alla
-      // misura espansa piu' vicina, e dato che dragging() e' gia' false la transizione CSS
-      // anima il piccolo aggiustamento invece di farlo di colpo.
       this.persist(snap(this.pendingWidth));
     });
     this.teardown();
@@ -158,6 +166,7 @@ export class Sidebar {
     this.stopMove = undefined;
     this.stopUp = undefined;
     this.stopCancel = undefined;
+    this.asideEl = undefined;
     this.renderer.removeStyle(document.body, 'user-select');
     this.renderer.removeStyle(document.body, 'cursor');
   }
@@ -172,11 +181,11 @@ function clamp(value: number): number {
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
 }
 
+// Niente piu' "magnetismo" a meta' corsa (era cio' che dava lo scatto al rilascio): se rilasci
+// nella zona morta sotto la soglia delle etichette, la sidebar collassa al rail; altrimenti resta
+// esattamente dove l'hai lasciata, come l'explorer di VS Code.
 function snap(value: number): number {
-  for (const target of SNAP_TARGETS) {
-    if (Math.abs(value - target) <= SNAP_THRESHOLD) return target;
-  }
-  return value;
+  return value < LABEL_THRESHOLD ? MIN_WIDTH : value;
 }
 
 function readInitialWidth(): number {

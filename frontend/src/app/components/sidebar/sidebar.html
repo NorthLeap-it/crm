@@ -2,7 +2,7 @@
 <aside
   class="bg-base-100 border-r border-base-300 min-h-full flex flex-col relative"
   [style.width.px]="width()"
-  [class.transition-[width]]="!dragging()"
+  [style.transition]="dragging() ? 'none' : 'width 0.15s ease-out'"
   [class.select-none]="dragging()"
 >
   <!-- logo (scala col rail) -->
