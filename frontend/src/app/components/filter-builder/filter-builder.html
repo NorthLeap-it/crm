@@ -1,0 +1,46 @@
+<div class="space-y-2 rounded-sm border border-base-300 bg-base-200/40 p-3">
+  <div class="flex items-center gap-2 text-xs">
+    <span class="text-base-content/50">Mostra i record dove</span>
+    <select class="select select-xs rounded-sm w-auto" [value]="value().combinator" (change)="setCombinator($any($event.target).value)">
+      <option value="and">TUTTE (AND)</option>
+      <option value="or">QUALSIASI (OR)</option>
+    </select>
+    <span class="text-base-content/50">le condizioni:</span>
+  </div>
+
+  @for (c of value().conditions; track $index) {
+    @if (isGroup(c)) {
+      <div class="ml-3 border-l-2 border-primary/30 pl-2">
+        <app-filter-builder [fields]="fields()" [value]="asGroup(c)" (valueChange)="patchGroup($index, $event)" />
+        <button type="button" class="btn btn-ghost btn-xs text-error rounded-sm mt-1" (click)="removeAt($index)">Rimuovi gruppo</button>
+      </div>
+    } @else {
+      <div class="flex flex-wrap items-center gap-1.5">
+        <select class="select select-xs rounded-sm w-40" [value]="asCondition(c).field"
+                (change)="patchCondition($index, { field: $any($event.target).value })">
+          @for (col of columns(); track col.key) { <option [value]="col.key">{{ col.label }}</option> }
+        </select>
+        <select class="select select-xs rounded-sm w-32" [value]="asCondition(c).op"
+                (change)="patchCondition($index, { op: $any($event.target).value })">
+          @for (o of ops; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+        </select>
+        @if (!noValueOps.includes(asCondition(c).op)) {
+          <input class="input input-xs rounded-sm flex-1 min-w-24" placeholder="valore"
+                 [value]="asCondition(c).value ?? ''"
+                 (input)="patchCondition($index, { value: $any($event.target).value })" />
+        }
+        @if (asCondition(c).op === 'between') {
+          <input class="input input-xs rounded-sm w-24" placeholder="e"
+                 [value]="asCondition(c).value2 ?? ''"
+                 (input)="patchCondition($index, { value2: $any($event.target).value })" />
+        }
+        <button type="button" class="btn btn-ghost btn-xs text-error rounded-sm" (click)="removeAt($index)">✕</button>
+      </div>
+    }
+  }
+
+  <div class="flex gap-2">
+    <button type="button" class="btn btn-ghost btn-xs rounded-sm" (click)="addCondition()">+ Condizione</button>
+    <button type="button" class="btn btn-ghost btn-xs rounded-sm" (click)="addGroup()">+ Gruppo</button>
+  </div>
+</div>

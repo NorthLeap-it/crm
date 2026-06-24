@@ -1,12 +1,14 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, catchError, combineLatest, filter, map, of, startWith, switchMap, tap } from 'rxjs';
 
 import { Drawer } from '../../components/drawer/drawer';
+import { FilterBuilder } from '../../components/filter-builder/filter-builder';
 import { DynamicForm } from '../../components/dynamic-form/dynamic-form';
 import { UiButton } from '../../components/ui/button';
 import { UiSpinner } from '../../components/ui/spinner';
+import { FilterGroup } from '../../models/filter';
 import { FieldDef } from '../../models/object-type';
 import { RecordItem } from '../../models/record';
 import { RecordsService } from '../../services/records.service';
@@ -14,7 +16,7 @@ import { RecordsService } from '../../services/records.service';
 @Component({
   selector: 'app-record-list',
   standalone: true,
-  imports: [Drawer, DynamicForm, UiButton, UiSpinner],
+  imports: [Drawer, FilterBuilder, DynamicForm, UiButton, UiSpinner],
   templateUrl: './record-list.html'
 })
 export class RecordList {
@@ -27,6 +29,11 @@ export class RecordList {
   protected readonly drawerOpen = signal(false);
   protected readonly submitting = signal(false);
 
+  // filtri avanzati (AND/OR annidati). Vuoto = nessun filtro.
+  protected readonly showFilters = signal(false);
+  protected readonly filterGroup = signal<FilterGroup>({ combinator: 'and', conditions: [] });
+  protected readonly activeFilterCount = computed(() => this.filterGroup().conditions.length);
+
   // trigger di ricarica (dopo una create) che si fonde con i cambi di rotta nello stream dati
   private readonly reload$ = new Subject<void>();
 
@@ -35,16 +42,22 @@ export class RecordList {
   // la chiave di rotta esposta come signal (serve a openRecord/createRecord)
   protected readonly objectKey = toSignal(this.key$, { initialValue: '' });
 
-  // stream dati: a ogni cambio di key o reload, interroga il backend (switchMap annulla la
-  // richiesta precedente se la key cambia in corsa). HttpClient -> Observable, niente subscribe
-  // nudo: il risultato finisce in un signal via toSignal.
+  // stream dati: a ogni cambio di key, reload o filtro, interroga il backend via queryAdvanced
+  // (POST col body filter+sort). switchMap annulla la richiesta precedente. Il filtro vuoto è
+  // innocuo lato backend (nessuna WHERE). Risultato in un signal via toSignal.
   private readonly result = toSignal(
-    combineLatest([this.key$, this.reload$.pipe(startWith(undefined))]).pipe(
+    combineLatest([
+      this.key$,
+      this.reload$.pipe(startWith(undefined)),
+      toObservable(this.filterGroup)
+    ]).pipe(
       map(([key]) => key),
       filter((key): key is string => key.length > 0),
       tap(() => this.loading.set(true)),
       switchMap((key) =>
-        this.recordsService.query(key, { pageSize: 200 }).pipe(catchError(() => of(null)))
+        this.recordsService
+          .queryAdvanced(key, { pageSize: 200, filter: this.filterGroup() })
+          .pipe(catchError(() => of(null)))
       ),
       tap(() => this.loading.set(false))
     ),
@@ -73,6 +86,10 @@ export class RecordList {
     if (Array.isArray(raw)) return raw.join(', ');
     if (typeof raw === 'boolean') return raw ? 'Sì' : 'No';
     return String(raw);
+  }
+
+  protected resetFilter(): void {
+    this.filterGroup.set({ combinator: 'and', conditions: [] });
   }
 
   protected openRecord(rec: RecordItem): void {

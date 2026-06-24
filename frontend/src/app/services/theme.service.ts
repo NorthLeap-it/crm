@@ -11,6 +11,7 @@ export class ThemeService {
   private readonly _theme: WritableSignal<Theme> = signal<Theme>(readInitialTheme());
   readonly theme = this._theme.asReadonly();
 
+  // inizializzo il tema e salvo nel local storage per ricordare
   constructor() {
     effect(() => {
       const theme = this._theme();
@@ -19,6 +20,8 @@ export class ThemeService {
     });
   }
 
+  
+  // metodi per cambiare e settare un differente tema
   toggle(): void {
     this._theme.set(this._theme() === 'dark' ? 'light' : 'dark');
   }
@@ -28,6 +31,8 @@ export class ThemeService {
   }
 }
 
+// metodo che legge dal localStorage il tema iniziale, per poi caricarlo nel
+// costruttore
 function readInitialTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark') {

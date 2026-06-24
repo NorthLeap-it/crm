@@ -1,3 +1,4 @@
+import { FilterGroup } from './filter';
 import { ObjectType } from './object-type';
 
 // entities/Record.java — il motore metadata-driven: i valori dei campi dinamici stanno in `data`.
@@ -20,19 +21,7 @@ export interface RecordLink {
   data: Record<string, unknown> | null;
 }
 
-// dtos/FilterGroup.java — albero ricorsivo AND/OR. Una condizione foglia ha field/operator/value;
-// un gruppo ha combinator + conditions (mix di condizioni e sotto-gruppi, duck-typing su
-// `combinator` lato backend).
-export interface FilterCondition {
-  field: string;
-  operator: string;
-  value?: unknown;
-}
-
-export interface FilterGroup {
-  combinator: 'AND' | 'OR';
-  conditions: (FilterCondition | FilterGroup)[];
-}
+// FilterGroup/FilterCondition vivono in models/filter.ts (allineati al RecordFilterCompiler).
 
 export interface SortSpec {
   field: string;

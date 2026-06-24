@@ -4,8 +4,22 @@
       <h1 class="text-2xl font-semibold">{{ object()?.pluralLabel ?? objectKey() }}</h1>
       <p class="text-sm text-base-content/50">{{ total() }} record</p>
     </div>
-    <ui-button variant="primary" (click)="drawerOpen.set(true)">+ Nuovo</ui-button>
+    <div class="flex items-center gap-2">
+      <button class="btn btn-ghost btn-sm rounded-sm" (click)="showFilters.set(!showFilters())">
+        Filtri @if (activeFilterCount() > 0) { <span class="badge badge-primary badge-xs">{{ activeFilterCount() }}</span> }
+      </button>
+      <ui-button variant="primary" (click)="drawerOpen.set(true)">+ Nuovo</ui-button>
+    </div>
   </div>
+
+  @if (showFilters()) {
+    <div class="mb-4">
+      <app-filter-builder [fields]="formFields()" [(value)]="filterGroup" />
+      @if (activeFilterCount() > 0) {
+        <button class="btn btn-ghost btn-xs rounded-sm mt-2" (click)="resetFilter()">Azzera filtri</button>
+      }
+    </div>
+  }
 
   @if (loading()) {
     <div class="flex justify-center py-12"><ui-spinner /></div>
