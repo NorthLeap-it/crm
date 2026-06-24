@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -6,8 +6,12 @@ import { API_BASE_URL } from '../core/api-config';
 import {
   ApiKeyCreatedResponse,
   ApiKeySummary,
+  AuditLog,
   InviteCreatedResponse,
   UserSummary,
+  Webhook,
+  WebhookCreated,
+  WebhookDirection,
   Workflow
 } from '../models/admin';
 
@@ -75,5 +79,31 @@ export class AdminService {
 
   removeWorkflow(id: string): Observable<void> {
     return this.http.delete<void>(`${this.api}/workflows/${id}`);
+  }
+
+  // webhooks
+  /*
+    lista (senza secret)
+    crea (ritorna il secret in chiaro una sola volta)
+    rimuove
+  */
+  listWebhooks(): Observable<Webhook[]> {
+    return this.http.get<Webhook[]>(`${this.api}/webhooks`);
+  }
+
+  createWebhook(dto: { direction: WebhookDirection; name: string; url?: string; events?: string[] }): Observable<WebhookCreated> {
+    return this.http.post<WebhookCreated>(`${this.api}/webhooks`, dto);
+  }
+
+  removeWebhook(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/webhooks/${id}`);
+  }
+
+  // audit log (sola lettura, con filtri opzionali resource/resourceId)
+  listLogs(resource?: string, resourceId?: string): Observable<AuditLog[]> {
+    let params = new HttpParams();
+    if (resource) params = params.set('resource', resource);
+    if (resourceId) params = params.set('resourceId', resourceId);
+    return this.http.get<AuditLog[]>(`${this.api}/logs`, { params });
   }
 }

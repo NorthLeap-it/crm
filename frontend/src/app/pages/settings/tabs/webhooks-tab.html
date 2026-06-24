@@ -1,0 +1,73 @@
+<div>
+  <div class="flex justify-between items-center mb-3">
+    <p class="text-sm text-base-content/60">Webhook in entrata (verificati via HMAC) e in uscita.</p>
+    <ui-button variant="primary" (click)="creating.set(!creating())">{{ creating() ? 'Chiudi' : '+ Nuovo webhook' }}</ui-button>
+  </div>
+
+  @if (creating()) {
+    <form [formGroup]="form" (ngSubmit)="create()" class="border border-base-300 rounded-sm p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm mb-1">Nome <span class="text-error">*</span></label>
+        <input formControlName="name" class="input rounded-sm w-full" placeholder="es. Notifica CRM" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Direzione</label>
+        <select formControlName="direction" class="select rounded-sm w-full">
+          @for (d of directions; track d) { <option [value]="d">{{ d }}</option> }
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-sm mb-1">URL <span class="text-base-content/40">(solo per OUTBOUND)</span></label>
+        <input formControlName="url" class="input rounded-sm w-full" placeholder="https://esempio.com/hook" />
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-sm mb-1">Eventi <span class="text-base-content/40">(separati da virgola)</span></label>
+        <input formControlName="events" class="input rounded-sm w-full" placeholder="record.created, record.updated" />
+      </div>
+      @if (error()) {
+        <div class="sm:col-span-2 alert alert-error rounded-sm py-2 text-sm">{{ error() }}</div>
+      }
+      <div class="sm:col-span-2 flex justify-end">
+        <ui-button type="submit" variant="primary" [loading]="submitting()">Crea webhook</ui-button>
+      </div>
+    </form>
+  }
+
+  @if (createdSecret(); as secret) {
+    <div class="alert alert-warning rounded-sm py-2 text-sm mb-4 flex-col items-start">
+      <p class="font-medium">Copia il secret ora: non sarà più visibile.</p>
+      <code class="break-all">{{ secret }}</code>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else if (webhooks().length === 0) {
+    <p class="text-center py-8 text-base-content/50">Nessun webhook.</p>
+  } @else {
+    <table class="table table-sm border border-base-300 rounded-sm">
+      <thead><tr><th>Nome</th><th>Direzione</th><th>URL / Eventi</th><th>Stato</th><th>Creato</th><th></th></tr></thead>
+      <tbody>
+        @for (w of webhooks(); track w.id) {
+          <tr>
+            <td>{{ w.name }}</td>
+            <td><span class="badge badge-ghost badge-sm rounded-sm">{{ w.direction }}</span></td>
+            <td>
+              @if (w.url) { <div class="text-xs break-all">{{ w.url }}</div> }
+              @if (w.events?.length) { <div class="text-xs text-base-content/50">{{ w.events?.join(', ') }}</div> }
+            </td>
+            <td>
+              @if (w.active) {
+                <span class="badge badge-success badge-sm rounded-sm">attivo</span>
+              } @else {
+                <span class="badge badge-ghost badge-sm rounded-sm">disattivo</span>
+              }
+            </td>
+            <td class="whitespace-nowrap text-xs">{{ w.createdAt | date:'short' }}</td>
+            <td><button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="remove(w)">Elimina</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

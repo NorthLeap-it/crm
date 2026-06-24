@@ -43,3 +43,36 @@ export interface Workflow {
   createdAt: string;
   updatedAt: string;
 }
+
+export type WebhookDirection = 'INBOUND' | 'OUTBOUND';
+
+// dtos/WebhookSummary.java — proiezione di lista, niente `secret` (visibile solo alla creazione).
+// Il boolean `active` (non `isActive`): l'entity Lombok serializza isActive() -> `active`.
+export interface Webhook {
+  id: string;
+  direction: WebhookDirection;
+  name: string;
+  url: string | null;
+  events: string[] | null;
+  active: boolean;
+  createdAt: string;
+}
+
+// entities/Webhook.java — risposta di create(): include il `secret` in chiaro UNA sola volta
+// (per firmare/verificare l'HMAC), come la chiave di ApiKeyCreatedResponse.
+export interface WebhookCreated extends Webhook {
+  secret: string;
+}
+
+// entities/AuditLog.java — sola lettura (GET /api/logs). `diff` è il jsonb before/after.
+export interface AuditLog {
+  id: string;
+  actorId: string | null;
+  actorType: string;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  diff: Record<string, unknown> | null;
+  ip: string | null;
+  createdAt: string;
+}

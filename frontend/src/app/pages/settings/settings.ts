@@ -2,13 +2,15 @@ import { Component, computed, inject, signal } from '@angular/core';
 
 import { AuthService } from '../../services/auth.service';
 import { ApiKeysTab } from './tabs/apikeys-tab';
+import { AuditTab } from './tabs/audit-tab';
 import { CompanyTab } from './tabs/company-tab';
 import { ObjectsTab } from './tabs/objects-tab';
 import { RolesTab } from './tabs/roles-tab';
 import { UsersTab } from './tabs/users-tab';
+import { WebhooksTab } from './tabs/webhooks-tab';
 import { WorkflowsTab } from './tabs/workflows-tab';
 
-type Tab = 'objects' | 'users' | 'apikeys' | 'workflows' | 'roles' | 'company';
+type Tab = 'objects' | 'users' | 'apikeys' | 'workflows' | 'webhooks' | 'audit' | 'roles' | 'company';
 
 // ruoli che possono gestire l'organizzazione (anagrafica azienda): allineati al gate backend
 // user/WRITE, ma ristretti agli admin "di organizzazione".
@@ -18,7 +20,7 @@ const ORG_ADMIN_ROLES = ['owner', 'admin', 'manager'];
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [ObjectsTab, UsersTab, ApiKeysTab, WorkflowsTab, RolesTab, CompanyTab],
+  imports: [ObjectsTab, UsersTab, ApiKeysTab, WorkflowsTab, WebhooksTab, AuditTab, RolesTab, CompanyTab],
   templateUrl: './settings.html'
 })
 export class Settings {
@@ -38,6 +40,8 @@ export class Settings {
       { id: 'users', label: 'Utenti' },
       { id: 'apikeys', label: 'API Key' },
       { id: 'workflows', label: 'Workflow' },
+      { id: 'webhooks', label: 'Webhooks' },
+      { id: 'audit', label: 'Audit' },
       { id: 'roles', label: 'Ruoli' }
     ];
     if (this.isOrgAdmin()) {

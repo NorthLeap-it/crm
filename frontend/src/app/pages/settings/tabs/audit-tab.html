@@ -1,0 +1,37 @@
+<div>
+  <p class="text-sm text-base-content/60 mb-3">Registro delle azioni (ultime 100). Sola lettura.</p>
+
+  <form [formGroup]="form" (ngSubmit)="applyFilters()" class="border border-base-300 rounded-sm p-4 mb-4 flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-40">
+      <label class="block text-sm mb-1">Risorsa</label>
+      <input formControlName="resource" class="input rounded-sm w-full" placeholder="es. contact" />
+    </div>
+    <div class="flex-1 min-w-40">
+      <label class="block text-sm mb-1">ID risorsa</label>
+      <input formControlName="resourceId" class="input rounded-sm w-full" placeholder="UUID del record" />
+    </div>
+    <ui-button type="submit" variant="primary">Filtra</ui-button>
+    <button type="button" class="btn btn-ghost rounded-sm" (click)="reset()">Azzera</button>
+  </form>
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else if (logs().length === 0) {
+    <p class="text-center py-8 text-base-content/50">Nessuna voce.</p>
+  } @else {
+    <table class="table table-sm border border-base-300 rounded-sm">
+      <thead><tr><th>Quando</th><th>Attore</th><th>Azione</th><th>Risorsa</th><th>ID</th></tr></thead>
+      <tbody>
+        @for (l of logs(); track l.id) {
+          <tr>
+            <td class="whitespace-nowrap text-xs">{{ l.createdAt | date:'short' }}</td>
+            <td class="text-xs"><span class="badge badge-ghost badge-xs rounded-sm">{{ l.actorType }}</span></td>
+            <td><code>{{ l.action }}</code></td>
+            <td>{{ l.resource }}</td>
+            <td class="text-xs break-all">{{ l.resourceId ?? '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
