@@ -7,8 +7,8 @@ import { Subject, catchError, of, startWith, switchMap, tap } from 'rxjs';
 import { ICON_KEYS, resolveObjectIcon } from '../../../core/object-icons';
 import { UiButton } from '../../../components/ui/button';
 import { UiSpinner } from '../../../components/ui/spinner';
-import { FIELD_TYPES, FieldDef, FieldType, ObjectType } from '../../../models/object-type';
-import { ObjectTypeService } from '../../../services/object-type.service';
+import { FIELD_TYPES, FieldDef, FieldOption, FieldType, ObjectType } from '../../../models/object-type';
+import { FieldUpsert, ObjectTypeService } from '../../../services/object-type.service';
 
 @Component({
   selector: 'app-objects-tab',
@@ -61,8 +61,17 @@ export class ObjectsTab {
     label: ['', Validators.required],
     type: ['TEXT' as FieldType, Validators.required],
     required: [false],
-    icon: ['']
+    icon: [''],
+    // opzioni per i tipi a scelta: una riga per voce, formato "valore" oppure "valore|etichetta"
+    optionsText: [''],
+    // configurazione relazione
+    targetObject: [''],
+    multiple: [false]
   });
+
+  // tipi che richiedono una lista di opzioni / una relazione (per mostrare i campi giusti nel form)
+  protected readonly selectTypes: FieldType[] = ['SELECT', 'MULTISELECT', 'STATUS', 'TAGS'];
+  protected readonly relationTypes: FieldType[] = ['RELATION', 'LOOKUP'];
 
   // chiave del campo in modifica (null = stiamo aggiungendo un campo nuovo)
   protected readonly editingFieldKey = signal<string | null>(null);
@@ -92,7 +101,10 @@ export class ObjectsTab {
       label: field.label,
       type: field.type,
       required: field.required,
-      icon: field.icon ?? ''
+      icon: field.icon ?? '',
+      optionsText: this.optionsToText(field.options),
+      targetObject: (field.config?.['targetObject'] as string) ?? '',
+      multiple: field.config?.['multiple'] === true
     });
     this.fieldForm.controls.key.disable();
     this.addingField.set(true);
@@ -113,11 +125,24 @@ export class ObjectsTab {
     }
     this.fieldSubmitting.set(true);
     this.fieldError.set(null);
-    const value = this.fieldForm.getRawValue(); // include anche la chiave disabilitata, in modifica
+    const raw = this.fieldForm.getRawValue(); // include anche la chiave disabilitata, in modifica
+    const dto: FieldUpsert = {
+      key: raw.key,
+      label: raw.label,
+      type: raw.type,
+      required: raw.required,
+      icon: raw.icon
+    };
+    // allego options/config solo per i tipi che li usano
+    if (this.selectTypes.includes(raw.type)) {
+      dto.options = this.parseOptions(raw.optionsText);
+    } else if (this.relationTypes.includes(raw.type)) {
+      dto.config = { targetObject: raw.targetObject, multiple: raw.multiple };
+    }
     const editing = this.editingFieldKey();
     const request$ = editing
-      ? this.objectTypeService.updateField(objKey, editing, value)
-      : this.objectTypeService.addField(objKey, value);
+      ? this.objectTypeService.updateField(objKey, editing, dto)
+      : this.objectTypeService.addField(objKey, dto);
     request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.fieldSubmitting.set(false);
@@ -130,6 +155,25 @@ export class ObjectsTab {
         this.fieldError.set(err?.error?.message ?? 'Errore nel salvataggio del campo');
       }
     });
+  }
+
+  // "valore" o "valore|etichetta" per riga -> [{value,label}]
+  private parseOptions(text: string): FieldOption[] {
+    return text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .map((line) => {
+        const [value, label] = line.split('|').map((s) => s.trim());
+        return { value, label: label || value };
+      });
+  }
+
+  // inverso di parseOptions, per precompilare la textarea in modifica
+  private optionsToText(options: FieldOption[] | null): string {
+    return (options ?? [])
+      .map((o) => (o.label && o.label !== o.value ? `${o.value}|${o.label}` : o.value))
+      .join('\n');
   }
 
   protected removeField(objKey: string, field: FieldDef): void {

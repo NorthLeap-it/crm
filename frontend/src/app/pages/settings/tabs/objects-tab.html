@@ -137,6 +137,24 @@
                       }
                     </div>
                   </div>
+                  @if (selectTypes.includes(fieldForm.controls.type.value)) {
+                    <div class="sm:col-span-2">
+                      <label class="block text-xs mb-1">Opzioni <span class="text-base-content/40">(una per riga: <code>valore</code> oppure <code>valore|etichetta</code>)</span></label>
+                      <textarea formControlName="optionsText" rows="3" class="textarea textarea-sm rounded-sm w-full font-mono" placeholder="basso|Bassa&#10;medio|Media&#10;alto|Alta"></textarea>
+                    </div>
+                  }
+                  @if (relationTypes.includes(fieldForm.controls.type.value)) {
+                    <div>
+                      <label class="block text-xs mb-1">Oggetto collegato</label>
+                      <select formControlName="targetObject" class="select select-sm rounded-sm w-full">
+                        <option value="">—</option>
+                        @for (o of objects(); track o.id) { <option [value]="o.key">{{ o.pluralLabel }}</option> }
+                      </select>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm sm:mt-6">
+                      <input type="checkbox" formControlName="multiple" class="checkbox checkbox-sm rounded-sm" /> Selezione multipla
+                    </label>
+                  }
                   @if (fieldError()) {
                     <div class="sm:col-span-2 alert alert-error rounded-sm py-1 text-xs">{{ fieldError() }}</div>
                   }

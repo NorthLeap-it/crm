@@ -3,7 +3,18 @@ import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { tap } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api-config';
-import { FieldType, ObjectType } from '../models/object-type';
+import { FieldOption, FieldType, ObjectType } from '../models/object-type';
+
+// payload di creazione/modifica campo (chiave inclusa in creazione, ignorata in modifica)
+export interface FieldUpsert {
+  key?: string;
+  label?: string;
+  type?: FieldType;
+  required?: boolean;
+  icon?: string;
+  options?: FieldOption[];
+  config?: Record<string, unknown>;
+}
 
 // service che prende solo la lista di oggetti
 @Injectable({ providedIn: 'root' })
@@ -38,14 +49,15 @@ export class ObjectTypeService {
     return this.http.delete<void>(`${API_BASE_URL}/api/objects/${key}`);
   }
 
-  // aggiunge un campo a un object type (il backend ritorna l'oggetto aggiornato)
-  addField(key: string, dto: { key: string; label: string; type: FieldType; required?: boolean; icon?: string }) {
+  // aggiunge un campo a un object type (il backend ritorna l'oggetto aggiornato).
+  // options -> per SELECT/MULTISELECT/STATUS/TAGS; config -> per RELATION/LOOKUP (targetObject, multiple)
+  addField(key: string, dto: FieldUpsert) {
     return this.http.post<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields`, dto);
   }
 
   // modifica un campo non obbligatorio (il backend rifiuta gli obbligatori con un 400);
   // la chiave non si cambia, identifica il campo nell'URL
-  updateField(key: string, fieldKey: string, dto: { label?: string; type?: FieldType; required?: boolean; icon?: string }) {
+  updateField(key: string, fieldKey: string, dto: FieldUpsert) {
     return this.http.patch<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields/${fieldKey}`, dto);
   }
 
