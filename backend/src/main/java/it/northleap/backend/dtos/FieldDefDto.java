@@ -44,4 +44,5 @@ public class FieldDefDto {
     private List<Map<String, Object>> options;
     private Map<String, Object> config;
     private Integer sortOrder;
+    private String icon;
 }

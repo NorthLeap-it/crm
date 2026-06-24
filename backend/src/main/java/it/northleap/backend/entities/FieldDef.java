@@ -99,6 +99,9 @@ public class FieldDef {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 
+    @Column
+    private String icon;
+
     // select/multiselect/rating/status: [{value,label,color}]
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

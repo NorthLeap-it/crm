@@ -153,6 +153,7 @@ public class ObjectsService {
         field.setWidth(f.getWidth() != null ? f.getWidth() : "full");
         field.setOptions(f.getOptions());
         field.setConfig(f.getConfig());
+        field.setIcon(f.getIcon());
         field.setSortOrder(f.getSortOrder() != null ? f.getSortOrder() : order);
         return field;
     }
@@ -180,5 +181,6 @@ public class ObjectsService {
         if (dto.getOptions() != null) field.setOptions(dto.getOptions());
         if (dto.getConfig() != null) field.setConfig(dto.getConfig());
         if (dto.getSortOrder() != null) field.setSortOrder(dto.getSortOrder());
+        if (dto.getIcon() != null) field.setIcon(dto.getIcon());
     }
 }
