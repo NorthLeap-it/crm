@@ -51,13 +51,57 @@
           @if (expanded() === obj.key) {
             <div class="px-3 pb-3">
               <table class="table table-xs">
-                <thead><tr><th>Campo</th><th>Chiave</th><th>Tipo</th><th>Obbl.</th></tr></thead>
+                <thead><tr><th>Campo</th><th>Chiave</th><th>Tipo</th><th>Obbl.</th><th></th></tr></thead>
                 <tbody>
                   @for (f of obj.fields; track f.id) {
-                    <tr><td>{{ f.label }}</td><td><code>{{ f.key }}</code></td><td>{{ f.type }}</td><td>{{ f.required ? '✓' : '' }}</td></tr>
+                    <tr>
+                      <td>{{ f.label }}</td>
+                      <td><code>{{ f.key }}</code></td>
+                      <td>{{ f.type }}</td>
+                      <td>{{ f.required ? '✓' : '' }}</td>
+                      <td class="text-right">
+                        @if (f.required) {
+                          <span class="text-xs text-base-content/40">bloccato</span>
+                        } @else {
+                          <button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="removeField(obj.key, f)">Elimina</button>
+                        }
+                      </td>
+                    </tr>
                   }
                 </tbody>
               </table>
+
+              @if (addingField()) {
+                <form [formGroup]="fieldForm" (ngSubmit)="addField(obj.key)"
+                      class="border border-base-300 rounded-sm p-3 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs mb-1">Chiave <span class="text-error">*</span></label>
+                    <input formControlName="key" class="input input-sm rounded-sm w-full" placeholder="es. budget" />
+                  </div>
+                  <div>
+                    <label class="block text-xs mb-1">Etichetta <span class="text-error">*</span></label>
+                    <input formControlName="label" class="input input-sm rounded-sm w-full" placeholder="Budget" />
+                  </div>
+                  <div>
+                    <label class="block text-xs mb-1">Tipo</label>
+                    <select formControlName="type" class="select select-sm rounded-sm w-full">
+                      @for (t of fieldTypes; track t) { <option [value]="t">{{ t }}</option> }
+                    </select>
+                  </div>
+                  <label class="flex items-center gap-2 text-sm sm:mt-6">
+                    <input type="checkbox" formControlName="required" class="checkbox checkbox-sm rounded-sm" /> Obbligatorio
+                  </label>
+                  @if (fieldError()) {
+                    <div class="sm:col-span-2 alert alert-error rounded-sm py-1 text-xs">{{ fieldError() }}</div>
+                  }
+                  <div class="sm:col-span-2 flex justify-end gap-2">
+                    <button type="button" class="btn btn-ghost btn-sm rounded-sm" (click)="addingField.set(false)">Annulla</button>
+                    <ui-button type="submit" variant="primary" [loading]="fieldSubmitting()">Aggiungi campo</ui-button>
+                  </div>
+                </form>
+              } @else {
+                <button class="btn btn-ghost btn-sm rounded-sm mt-2" (click)="addingField.set(true)">+ Aggiungi campo</button>
+              }
             </div>
           }
         </div>

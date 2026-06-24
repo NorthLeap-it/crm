@@ -3,7 +3,7 @@ import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { tap } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api-config';
-import { ObjectType } from '../models/object-type';
+import { FieldType, ObjectType } from '../models/object-type';
 
 // service che prende solo la lista di oggetti
 @Injectable({ providedIn: 'root' })
@@ -36,5 +36,15 @@ export class ObjectTypeService {
   // metodo che toglie un oggetto
   remove(key: string) {
     return this.http.delete<void>(`${API_BASE_URL}/api/objects/${key}`);
+  }
+
+  // aggiunge un campo a un object type (il backend ritorna l'oggetto aggiornato)
+  addField(key: string, dto: { key: string; label: string; type: FieldType; required?: boolean }) {
+    return this.http.post<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields`, dto);
+  }
+
+  // toglie un campo (il backend rifiuta i campi obbligatori con un 400)
+  removeField(key: string, fieldKey: string) {
+    return this.http.delete<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields/${fieldKey}`);
   }
 }

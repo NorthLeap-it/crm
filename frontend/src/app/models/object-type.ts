@@ -25,6 +25,17 @@ export type FieldType =
   | 'EMAIL' | 'PHONE' | 'URL' | 'COLOR' | 'ICON' | 'ADDRESS' | 'GEO' | 'JSON' | 'UUID' | 'AUTONUMBER'
   | 'RELATION' | 'FILE' | 'IMAGE' | 'FORMULA' | 'ROLLUP' | 'LOOKUP' | 'USER' | 'STATUS';
 
+// I 39 FieldType in forma di array, per popolare il <select> del "+ Aggiungi campo".
+export const FIELD_TYPES: FieldType[] = [
+  'TEXT', 'VARCHAR', 'LONGTEXT', 'RICHTEXT',
+  'NUMBER', 'INTEGER', 'BIGINT', 'DECIMAL', 'FLOAT', 'PERCENT', 'CURRENCY', 'RATING', 'DURATION',
+  'DATE', 'DATETIME', 'TIME', 'TIMESTAMP',
+  'BOOLEAN',
+  'SELECT', 'MULTISELECT', 'TAGS',
+  'EMAIL', 'PHONE', 'URL', 'COLOR', 'ICON', 'ADDRESS', 'GEO', 'JSON', 'UUID', 'AUTONUMBER',
+  'RELATION', 'FILE', 'IMAGE', 'FORMULA', 'ROLLUP', 'LOOKUP', 'USER', 'STATUS'
+];
+
 export interface FieldOption {
   value: string;
   label: string;

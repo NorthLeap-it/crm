@@ -5,7 +5,7 @@ import { Subject, catchError, of, startWith, switchMap, tap } from 'rxjs';
 
 import { UiButton } from '../../../components/ui/button';
 import { UiSpinner } from '../../../components/ui/spinner';
-import { ObjectType } from '../../../models/object-type';
+import { FIELD_TYPES, FieldDef, FieldType, ObjectType } from '../../../models/object-type';
 import { ObjectTypeService } from '../../../services/object-type.service';
 
 @Component({
@@ -45,8 +45,60 @@ export class ObjectsTab {
     color: ['#2563eb']
   });
 
+  // --- gestione campi (aggiungi/elimina) ---
+  protected readonly fieldTypes = FIELD_TYPES;
+  protected readonly addingField = signal(false);
+  protected readonly fieldSubmitting = signal(false);
+  protected readonly fieldError = signal<string | null>(null);
+
+  protected readonly fieldForm = this.fb.nonNullable.group({
+    key: ['', [Validators.required, Validators.pattern('^[a-zA-Z0-9_]{1,64}$')]],
+    label: ['', Validators.required],
+    type: ['TEXT' as FieldType, Validators.required],
+    required: [false]
+  });
+
   protected toggle(key: string): void {
     this.expanded.set(this.expanded() === key ? null : key);
+    // chiudendo/cambiando oggetto azzero il form campo
+    this.addingField.set(false);
+    this.fieldError.set(null);
+  }
+
+  protected addField(objKey: string): void {
+    if (this.fieldForm.invalid || this.fieldSubmitting()) {
+      this.fieldForm.markAllAsTouched();
+      return;
+    }
+    this.fieldSubmitting.set(true);
+    this.fieldError.set(null);
+    this.objectTypeService
+      .addField(objKey, this.fieldForm.getRawValue())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.fieldSubmitting.set(false);
+          this.addingField.set(false);
+          this.fieldForm.reset({ type: 'TEXT', required: false });
+          this.reload$.next();
+        },
+        error: (err) => {
+          this.fieldSubmitting.set(false);
+          this.fieldError.set(err?.error?.message ?? 'Errore nell\'aggiunta del campo');
+        }
+      });
+  }
+
+  protected removeField(objKey: string, field: FieldDef): void {
+    if (field.required) return; // bloccati, non eliminabili
+    if (!confirm(`Eliminare il campo "${field.label}"?`)) return;
+    this.objectTypeService
+      .removeField(objKey, field.key)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reload$.next(),
+        error: (err) => this.fieldError.set(err?.error?.message ?? 'Errore nella rimozione del campo')
+      });
   }
 
   protected create(): void {
