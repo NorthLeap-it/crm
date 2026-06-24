@@ -22,6 +22,24 @@
         <label class="block text-sm mb-1">Colore</label>
         <input type="color" formControlName="color" class="input rounded-sm w-full h-10 p-1" />
       </div>
+      <div class="sm:col-span-2">
+        <label class="block text-sm mb-1">Icona</label>
+        <div class="flex flex-wrap gap-1">
+          <button type="button" (click)="form.controls.icon.setValue('')" title="Nessuna"
+                  class="w-8 h-8 flex items-center justify-center rounded-sm border transition text-xs text-base-content/40"
+                  [class.border-primary]="!form.controls.icon.value"
+                  [class.border-base-300]="!!form.controls.icon.value">∅</button>
+          @for (k of iconKeys; track k) {
+            <button type="button" (click)="form.controls.icon.setValue(k)" [title]="k"
+                    class="w-8 h-8 flex items-center justify-center rounded-sm border transition"
+                    [class.border-primary]="form.controls.icon.value === k"
+                    [class.text-primary]="form.controls.icon.value === k"
+                    [class.border-base-300]="form.controls.icon.value !== k">
+              <lucide-icon [img]="resolveIcon(k)" [size]="16" />
+            </button>
+          }
+        </div>
+      </div>
       @if (error()) {
         <div class="sm:col-span-2 alert alert-error rounded-sm py-2 text-sm">{{ error() }}</div>
       }
@@ -68,6 +86,7 @@
                         @if (f.required) {
                           <span class="text-xs text-base-content/40">bloccato</span>
                         } @else {
+                          <button class="btn btn-ghost btn-xs rounded-sm" (click)="startEditField(f)">Modifica</button>
                           <button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="removeField(obj.key, f)">Elimina</button>
                         }
                       </td>
@@ -77,10 +96,13 @@
               </table>
 
               @if (addingField()) {
-                <form [formGroup]="fieldForm" (ngSubmit)="addField(obj.key)"
+                <form [formGroup]="fieldForm" (ngSubmit)="submitField(obj.key)"
                       class="border border-base-300 rounded-sm p-3 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label class="block text-xs mb-1">Chiave <span class="text-error">*</span></label>
+                    <label class="block text-xs mb-1">
+                      Chiave <span class="text-error">*</span>
+                      @if (editingFieldKey()) { <span class="text-base-content/40">(non modificabile)</span> }
+                    </label>
                     <input formControlName="key" class="input input-sm rounded-sm w-full" placeholder="es. budget" />
                   </div>
                   <div>
@@ -119,12 +141,12 @@
                     <div class="sm:col-span-2 alert alert-error rounded-sm py-1 text-xs">{{ fieldError() }}</div>
                   }
                   <div class="sm:col-span-2 flex justify-end gap-2">
-                    <button type="button" class="btn btn-ghost btn-sm rounded-sm" (click)="addingField.set(false)">Annulla</button>
-                    <ui-button type="submit" variant="primary" [loading]="fieldSubmitting()">Aggiungi campo</ui-button>
+                    <button type="button" class="btn btn-ghost btn-sm rounded-sm" (click)="closeFieldForm()">Annulla</button>
+                    <ui-button type="submit" variant="primary" [loading]="fieldSubmitting()">{{ editingFieldKey() ? 'Salva' : 'Aggiungi campo' }}</ui-button>
                   </div>
                 </form>
               } @else {
-                <button class="btn btn-ghost btn-sm rounded-sm mt-2" (click)="addingField.set(true)">+ Aggiungi campo</button>
+                <button class="btn btn-ghost btn-sm rounded-sm mt-2" (click)="startAddField()">+ Aggiungi campo</button>
               }
             </div>
           }

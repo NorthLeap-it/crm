@@ -43,6 +43,12 @@ export class ObjectTypeService {
     return this.http.post<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields`, dto);
   }
 
+  // modifica un campo non obbligatorio (il backend rifiuta gli obbligatori con un 400);
+  // la chiave non si cambia, identifica il campo nell'URL
+  updateField(key: string, fieldKey: string, dto: { label?: string; type?: FieldType; required?: boolean; icon?: string }) {
+    return this.http.patch<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields/${fieldKey}`, dto);
+  }
+
   // toglie un campo (il backend rifiuta i campi obbligatori con un 400)
   removeField(key: string, fieldKey: string) {
     return this.http.delete<ObjectType>(`${API_BASE_URL}/api/objects/${key}/fields/${fieldKey}`);

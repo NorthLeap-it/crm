@@ -64,35 +64,72 @@ export class ObjectsTab {
     icon: ['']
   });
 
+  // chiave del campo in modifica (null = stiamo aggiungendo un campo nuovo)
+  protected readonly editingFieldKey = signal<string | null>(null);
+
   protected toggle(key: string): void {
     this.expanded.set(this.expanded() === key ? null : key);
     // chiudendo/cambiando oggetto azzero il form campo
-    this.addingField.set(false);
-    this.fieldError.set(null);
+    this.closeFieldForm();
   }
 
-  protected addField(objKey: string): void {
+  // apre il form in modalità "aggiungi"
+  protected startAddField(): void {
+    this.editingFieldKey.set(null);
+    this.fieldError.set(null);
+    this.fieldForm.reset({ type: 'TEXT', required: false });
+    this.fieldForm.controls.key.enable();
+    this.addingField.set(true);
+  }
+
+  // apre il form in modalità "modifica", precompilato; la chiave resta bloccata (identifica il campo)
+  protected startEditField(field: FieldDef): void {
+    if (field.required) return; // gli obbligatori non si toccano
+    this.editingFieldKey.set(field.key);
+    this.fieldError.set(null);
+    this.fieldForm.reset({
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      icon: field.icon ?? ''
+    });
+    this.fieldForm.controls.key.disable();
+    this.addingField.set(true);
+  }
+
+  protected closeFieldForm(): void {
+    this.addingField.set(false);
+    this.editingFieldKey.set(null);
+    this.fieldError.set(null);
+    this.fieldForm.controls.key.enable();
+  }
+
+  // submit unico: PATCH se stiamo modificando, POST se stiamo aggiungendo
+  protected submitField(objKey: string): void {
     if (this.fieldForm.invalid || this.fieldSubmitting()) {
       this.fieldForm.markAllAsTouched();
       return;
     }
     this.fieldSubmitting.set(true);
     this.fieldError.set(null);
-    this.objectTypeService
-      .addField(objKey, this.fieldForm.getRawValue())
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.fieldSubmitting.set(false);
-          this.addingField.set(false);
-          this.fieldForm.reset({ type: 'TEXT', required: false });
-          this.reload$.next();
-        },
-        error: (err) => {
-          this.fieldSubmitting.set(false);
-          this.fieldError.set(err?.error?.message ?? 'Errore nell\'aggiunta del campo');
-        }
-      });
+    const value = this.fieldForm.getRawValue(); // include anche la chiave disabilitata, in modifica
+    const editing = this.editingFieldKey();
+    const request$ = editing
+      ? this.objectTypeService.updateField(objKey, editing, value)
+      : this.objectTypeService.addField(objKey, value);
+    request$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.fieldSubmitting.set(false);
+        this.closeFieldForm();
+        this.fieldForm.reset({ type: 'TEXT', required: false });
+        this.reload$.next();
+      },
+      error: (err) => {
+        this.fieldSubmitting.set(false);
+        this.fieldError.set(err?.error?.message ?? 'Errore nel salvataggio del campo');
+      }
+    });
   }
 
   protected removeField(objKey: string, field: FieldDef): void {
