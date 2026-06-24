@@ -84,6 +84,11 @@ public class FileStorageService {
                 .orElseThrow(() -> new NotFoundException("File non trovato"));
     }
 
+    // allegati di un record, dal più recente (per la sezione "Allegati" del dettaglio record)
+    public java.util.List<FileObject> listByRecord(UUID recordId) {
+        return fileObjectRepository.findByRecordIdOrderByCreatedAtDesc(recordId);
+    }
+
     // guardia path-traversal esplicita: verifica che il path risolto resti dentro uploadDir.
     // L'originale si affida solo al fatto che il nome sia auto-generato; qui aggiungiamo un
     // controllo a runtime perché è economico e difensivo (deviazione di hardening dichiarata).

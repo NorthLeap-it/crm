@@ -36,6 +36,12 @@ public class FileController {
         return ResponseEntity.ok(fileStorageService.store(file, actorId, recordId));
     }
 
+    // allegati di un record (per la sezione "Allegati" del dettaglio record)
+    @GetMapping
+    public ResponseEntity<java.util.List<FileObject>> listByRecord(@RequestParam("recordId") UUID recordId) {
+        return ResponseEntity.ok(fileStorageService.listByRecord(recordId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Resource> download(@PathVariable UUID id) {
         FileObject file = fileStorageService.get(id);
