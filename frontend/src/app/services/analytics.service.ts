@@ -3,43 +3,31 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api-config';
-
-// dtos/RevenuePoint.java, EfficiencyPoint.java, PipelinePoint.java, ActivityPoint.java
-export interface RevenuePoint {
-  month: string;
-  fatturato: number;
-  costi: number;
-}
-export interface EfficiencyPoint {
-  month: string;
-  efficienza: number;
-}
-export interface PipelinePoint {
-  name: string;
-  value: number;
-}
-export interface ActivityPoint {
-  month: string;
-  // chiave accentata preservata dall'API originale (vedi ActivityPoint.java @JsonProperty)
-  attività: number;
-  completate: number;
-}
+import { IRevenuePoint } from '../models/IRevenuePoint';
+import { IEfficiencyPoint } from '../models/IEfficiencyPoint';
+import { IPipelinePoint } from '../models/IPipelinePoint';
+import { IActivityPoint } from '../models/IActivityPoint';
 
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
+  // http client + url base
   private readonly http = inject(HttpClient);
   private readonly base = `${API_BASE_URL}/api/analytics`;
 
-  revenue(): Observable<RevenuePoint[]> {
-    return this.http.get<RevenuePoint[]>(`${this.base}/revenue`);
+  // 4 endpoint per le analitycs
+  revenue(): Observable<IRevenuePoint[]> {
+    return this.http.get<IRevenuePoint[]>(`${this.base}/revenue`);
   }
-  efficiency(): Observable<EfficiencyPoint[]> {
-    return this.http.get<EfficiencyPoint[]>(`${this.base}/efficiency`);
+
+  efficiency(): Observable<IEfficiencyPoint[]> {
+    return this.http.get<IEfficiencyPoint[]>(`${this.base}/efficiency`);
   }
-  pipeline(): Observable<PipelinePoint[]> {
-    return this.http.get<PipelinePoint[]>(`${this.base}/pipeline`);
+
+  pipeline(): Observable<IPipelinePoint[]> {
+    return this.http.get<IPipelinePoint[]>(`${this.base}/pipeline`);
   }
-  activity(): Observable<ActivityPoint[]> {
-    return this.http.get<ActivityPoint[]>(`${this.base}/activity`);
+
+  activity(): Observable<IActivityPoint[]> {
+    return this.http.get<IActivityPoint[]>(`${this.base}/activity`);
   }
 }

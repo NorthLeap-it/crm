@@ -8,15 +8,13 @@ import { ChartComponent } from '../../components/chart/chart';
 import { UiCard } from '../../components/ui/card';
 import { UiSpinner } from '../../components/ui/spinner';
 import { ObjectType } from '../../models/object-type';
-import {
-  ActivityPoint,
-  AnalyticsService,
-  EfficiencyPoint,
-  PipelinePoint,
-  RevenuePoint
-} from '../../services/analytics.service';
 import { ObjectTypeService } from '../../services/object-type.service';
 import { RecordsService } from '../../services/records.service';
+import { IRevenuePoint } from '../../models/IRevenuePoint';
+import { IPipelinePoint } from '../../models/IPipelinePoint';
+import { IActivityPoint } from '../../models/IActivityPoint';
+import { IEfficiencyPoint } from '../../models/IEfficiencyPoint';
+import { AnalyticsService } from '../../services/analytics.service';
 
 interface Kpi {
   object: ObjectType;
@@ -24,10 +22,10 @@ interface Kpi {
 }
 
 interface AnalyticsData {
-  revenue: RevenuePoint[];
-  pipeline: PipelinePoint[];
-  activity: ActivityPoint[];
-  efficiency: EfficiencyPoint[];
+  revenue: IRevenuePoint[];
+  pipeline: IPipelinePoint[];
+  activity: IActivityPoint[];
+  efficiency: IEfficiencyPoint[];
 }
 
 @Component({
