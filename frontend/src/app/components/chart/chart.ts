@@ -9,24 +9,26 @@ import {
 } from '@angular/core';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 
-// Chart.js diretto (canvas), niente wrapper Angular di terze parti per evitare conflitti di
-// peerDependency su Angular 22. Registrazione una tantum di tutti i componenti Chart.js.
+// chart creato direttamente con js
+// niente wrapper angular 
 Chart.register(...registerables);
 
 @Component({
   selector: 'app-chart',
   standalone: true,
-  template: `<div class="relative h-64"><canvas #canvas></canvas></div>`
+  templateUrl: './chart.html'
 })
 export class ChartComponent implements AfterViewInit, OnDestroy {
+  // configurazione iniziale con "tela" di disegno
   readonly config = input.required<ChartConfiguration>();
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
 
+  // variabili
   private chart?: Chart;
   private viewReady = false;
 
   constructor() {
-    // ridisegna quando cambia la config (dopo che la view e' pronta)
+    // quando cambia config, cambia anche il disesgno
     effect(() => {
       const cfg = this.config();
       if (this.viewReady) this.render(cfg);
