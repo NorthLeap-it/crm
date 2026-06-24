@@ -42,6 +42,31 @@
         </ul>
       </div>
     }
+
+    <div class="mt-6">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-semibold">Allegati</h2>
+        <label class="btn btn-ghost btn-sm rounded-sm cursor-pointer">
+          {{ uploading() ? 'Caricamento…' : '+ Carica file' }}
+          <input type="file" class="hidden" (change)="onFileSelected($event)" [disabled]="uploading()" />
+        </label>
+      </div>
+      @if (files().length === 0) {
+        <p class="text-sm text-base-content/50">Nessun allegato.</p>
+      } @else {
+        <ul class="border border-base-300 rounded-sm divide-y divide-base-300">
+          @for (f of files(); track f.id) {
+            <li class="flex items-center justify-between p-2 text-sm">
+              <span class="truncate">{{ f.filename }}</span>
+              <span class="flex items-center gap-3 shrink-0">
+                <span class="text-xs text-base-content/40">{{ (f.size / 1024).toFixed(0) }} KB</span>
+                <a [href]="downloadUrl(f)" target="_blank" rel="noopener" class="link link-primary text-xs">Scarica</a>
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </div>
 
   <app-drawer [open]="editOpen()" [title]="'Modifica ' + (object()?.label ?? 'record')" (close)="editOpen.set(false)">

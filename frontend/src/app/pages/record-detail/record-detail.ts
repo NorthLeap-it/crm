@@ -8,6 +8,8 @@ import { DynamicForm } from '../../components/dynamic-form/dynamic-form';
 import { UiButton } from '../../components/ui/button';
 import { UiSpinner } from '../../components/ui/spinner';
 import { FieldDef } from '../../models/object-type';
+import { FileObject } from '../../models/file-object';
+import { FileService } from '../../services/file.service';
 import { ObjectTypeService } from '../../services/object-type.service';
 import { RecordsService } from '../../services/records.service';
 
@@ -22,6 +24,7 @@ export class RecordDetail {
   private readonly router = inject(Router);
   private readonly recordsService = inject(RecordsService);
   private readonly objectTypeService = inject(ObjectTypeService);
+  private readonly fileService = inject(FileService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly objectKey = this.route.snapshot.paramMap.get('objectKey') ?? '';
@@ -30,6 +33,7 @@ export class RecordDetail {
   protected readonly loading = signal(true);
   protected readonly editOpen = signal(false);
   protected readonly submitting = signal(false);
+  protected readonly uploading = signal(false);
 
   // l'ObjectType (per i campi) si carica una volta sola: stream -> signal
   protected readonly object = toSignal(this.objectTypeService.getByKey(this.objectKey), {
@@ -54,6 +58,16 @@ export class RecordDetail {
   protected readonly record = computed(() => this.detail()?.record ?? null);
   protected readonly outgoing = computed(() => this.detail()?.outgoing ?? []);
   protected readonly incoming = computed(() => this.detail()?.incoming ?? []);
+
+  // allegati del record: stream ricaricabile dopo ogni upload
+  private readonly filesReload$ = new Subject<void>();
+  protected readonly files = toSignal(
+    this.filesReload$.pipe(
+      startWith(undefined),
+      switchMap(() => this.fileService.list(this.recordId).pipe(catchError(() => of<FileObject[]>([]))))
+    ),
+    { initialValue: [] as FileObject[] }
+  );
 
   protected readonly visibleFields = computed<FieldDef[]>(() =>
     (this.object()?.fields ?? []).filter((f) => !f.hidden).sort((a, b) => a.sortOrder - b.sortOrder)
@@ -81,6 +95,31 @@ export class RecordDetail {
           this.reload$.next();
         },
         error: () => this.submitting.set(false)
+      });
+  }
+
+  protected downloadUrl(file: FileObject): string {
+    return this.fileService.downloadUrl(file.id);
+  }
+
+  protected onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.uploading.set(true);
+    this.fileService
+      .upload(file, this.recordId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.uploading.set(false);
+          input.value = ''; // permette di ricaricare lo stesso file
+          this.filesReload$.next();
+        },
+        error: () => {
+          this.uploading.set(false);
+          input.value = '';
+        }
       });
   }
 
