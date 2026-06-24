@@ -98,6 +98,10 @@ public class ObjectsService {
     public ObjectType updateField(String key, String fieldKey, FieldDefDto dto) {
         ObjectType obj = objectTypeOrThrow(key);
         FieldDef field = fieldOrThrow(obj, fieldKey);
+        // i campi obbligatori sono "di base" e non si toccano: né si modificano né si eliminano
+        if (field.isRequired()) {
+            throw new BadRequestException("I campi obbligatori non si possono modificare");
+        }
         applyFieldUpdates(field, dto);
         fieldDefRepository.save(field);
         return objectTypeOrThrow(key);
@@ -107,6 +111,9 @@ public class ObjectsService {
     public ObjectType removeField(String key, String fieldKey) {
         ObjectType obj = objectTypeOrThrow(key);
         FieldDef field = fieldOrThrow(obj, fieldKey);
+        if (field.isRequired()) {
+            throw new BadRequestException("I campi obbligatori non si possono eliminare");
+        }
         fieldDefRepository.delete(field);
         return objectTypeOrThrow(key);
     }
