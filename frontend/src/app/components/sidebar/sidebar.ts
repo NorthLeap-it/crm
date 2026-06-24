@@ -1,7 +1,7 @@
 import { Component, DestroyRef, NgZone, Renderer2, WritableSignal, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { LucideAngularModule, Settings } from 'lucide-angular';
+import { ChartColumn, LucideAngularModule, Settings } from 'lucide-angular';
 
 import { resolveObjectIcon } from '../../core/object-icons';
 import { ObjectType } from '../../models/object-type';
@@ -39,8 +39,9 @@ export class Sidebar {
 
   // mi prendo la lista di object dal service omonimo
   protected readonly objects = this.objectTypeService.objects;
-  // icona settings
+  // icona settings + grafici
   protected readonly SettingsIcon = Settings;
+  protected readonly ChartsIcon = ChartColumn;
 
   // estremi esposti al template (per gli attributi aria della maniglia)
   protected readonly MIN_WIDTH = MIN_WIDTH;

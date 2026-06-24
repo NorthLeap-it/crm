@@ -1,0 +1,63 @@
+<div>
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-semibold">Grafici</h1>
+    <ui-button variant="primary" (click)="creating.set(!creating())">{{ creating() ? 'Chiudi' : '+ Nuovo grafico' }}</ui-button>
+  </div>
+
+  @if (creating()) {
+    <form [formGroup]="form" (ngSubmit)="create()" class="border border-base-300 rounded-sm p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm mb-1">Titolo <span class="text-error">*</span></label>
+        <input formControlName="label" class="input rounded-sm w-full" placeholder="es. Lead per stato" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Tipo</label>
+        <select formControlName="type" class="select rounded-sm w-full">
+          @for (t of chartTypes; track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Oggetto <span class="text-error">*</span></label>
+        <select formControlName="objectKey" class="select rounded-sm w-full">
+          <option value="">—</option>
+          @for (o of objects(); track o.id) { <option [value]="o.key">{{ o.pluralLabel }}</option> }
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Raggruppa per <span class="text-error">*</span></label>
+        <input formControlName="groupBy" class="input rounded-sm w-full" placeholder="status oppure chiave campo" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Aggregazione</label>
+        <select formControlName="aggregate" class="select rounded-sm w-full">
+          <option value="count">Conteggio</option>
+          <option value="sum">Somma</option>
+        </select>
+      </div>
+      @if (form.controls.aggregate.value === 'sum') {
+        <div>
+          <label class="block text-sm mb-1">Campo da sommare</label>
+          <input formControlName="field" class="input rounded-sm w-full" placeholder="es. amount" />
+        </div>
+      }
+      @if (error()) {
+        <div class="sm:col-span-2 alert alert-error rounded-sm py-2 text-sm">{{ error() }}</div>
+      }
+      <div class="sm:col-span-2 flex justify-end">
+        <ui-button type="submit" variant="primary" [loading]="submitting()">Crea grafico</ui-button>
+      </div>
+    </form>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-12"><ui-spinner /></div>
+  } @else if (charts().length === 0) {
+    <p class="text-center py-12 text-base-content/50">Nessun grafico. Creane uno con "+ Nuovo grafico".</p>
+  } @else {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      @for (c of charts(); track c.id) {
+        <app-chart-card [chart]="c" (remove)="remove($event)" />
+      }
+    </div>
+  }
+</div>

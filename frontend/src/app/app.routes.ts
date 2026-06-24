@@ -31,6 +31,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/record-detail/record-detail').then((m) => m.RecordDetail)
       },
       {
+        path: 'charts',
+        loadComponent: () => import('./pages/charts/charts').then((m) => m.Charts)
+      },
+      {
         path: 'search',
         loadComponent: () => import('./pages/search/search').then((m) => m.Search)
       },

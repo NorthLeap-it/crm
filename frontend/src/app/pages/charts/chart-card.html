@@ -1,0 +1,28 @@
+<div class="border border-base-300 rounded-sm p-4">
+  <div class="flex items-center justify-between mb-2">
+    <h3 class="font-medium text-sm">{{ chart().label }}</h3>
+    <div class="flex items-center gap-2">
+      <span class="badge badge-ghost badge-xs rounded-sm">{{ chart().type }}</span>
+      <button class="btn btn-ghost btn-xs text-error rounded-sm" (click)="remove.emit(chart())">Elimina</button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><ui-spinner /></div>
+  } @else if (points().length === 0) {
+    <p class="text-center py-8 text-sm text-base-content/50">Nessun dato.</p>
+  } @else if (isKpi()) {
+    <p class="text-4xl font-semibold text-center py-6">{{ kpiValue() }}</p>
+  } @else if (isTable()) {
+    <table class="table table-xs">
+      <thead><tr><th>Voce</th><th class="text-right">Valore</th></tr></thead>
+      <tbody>
+        @for (p of points(); track p.label) {
+          <tr><td>{{ p.label }}</td><td class="text-right">{{ p.value }}</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else if (config(); as cfg) {
+    <app-chart [config]="cfg" />
+  }
+</div>
